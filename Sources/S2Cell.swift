@@ -3,7 +3,7 @@
 //  S2Geometry
 //
 //  Created by Alex Studnicka on 7/1/16.
-//  Copyright © 2016 Alex Studnicka. All rights reserved.
+//  Copyright © 2016 Alex Studnicka. MIT License.
 //
 
 #if os(Linux)
