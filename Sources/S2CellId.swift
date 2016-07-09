@@ -238,7 +238,7 @@ public struct S2CellId: Comparable {
 	
 	/// Return true if this is a leaf cell (more efficient than checking whether level() == MAX_LEVEL).
 	public var isLeaf: Bool {
-		return (Int(id) & 1) != 0
+		return (id & 1) != 0
 	}
 	
 	/// Return true if this is a top-level face cell (more efficient than checking whether level() == 0).
