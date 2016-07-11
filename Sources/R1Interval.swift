@@ -58,28 +58,28 @@ public struct R1Interval: Equatable { //, Hashable {
 		return hi - lo
 	}
 	
-	public func contains(p: Double) -> Bool {
+	public func contains(point p: Double) -> Bool {
 		return p >= lo && p <= hi
 	}
 	
-	public func interiorContains(p: Double) -> Bool {
+	public func interiorContains(point p: Double) -> Bool {
 		return p > lo && p < hi
 	}
 	
 	/// Return true if this interval contains the interval 'y'.
-	public func contains(y: R1Interval) -> Bool {
+	public func contains(interval y: R1Interval) -> Bool {
 		guard !y.isEmpty else { return true }
 		return y.lo >= lo && y.hi <= hi
 	}
 	
 	/// Return true if the interior of this interval contains the entire interval 'y' (including its boundary).
-	public func interiorContains(y: R1Interval) -> Bool {
+	public func interiorContains(interval y: R1Interval) -> Bool {
 		guard !y.isEmpty else { return true }
 		return y.lo > lo && y.hi < hi
 	}
 	
 	/// Return true if this interval intersects the given interval, i.e. if they have any points in common.
-	public func intersects(y: R1Interval) -> Bool {
+	public func intersects(with y: R1Interval) -> Bool {
 		if lo <= y.lo {
 			return y.lo <= hi && y.lo <= y.hi
 		} else {
@@ -88,12 +88,12 @@ public struct R1Interval: Equatable { //, Hashable {
 	}
 	
 	/// Return true if the interior of this interval intersects any point of the given interval (including its boundary).
-	public func interiorIntersects(y: R1Interval) -> Bool {
+	public func interiorIntersects(with y: R1Interval) -> Bool {
 		return y.lo < hi && lo < y.hi && lo < hi && y.lo <= y.hi
 	}
 	
 	/// Expand the interval so that it contains the given point "p".
-	public func addPoint(p: Double) -> R1Interval {
+	public func add(point p: Double) -> R1Interval {
 		if isEmpty {
 			return R1Interval.from(point: p)
 		} else if p < lo {
@@ -122,7 +122,7 @@ public struct R1Interval: Equatable { //, Hashable {
 	}
 	
 	/// Return the intersection of this interval with the given interval. Empty intervals do not need to be special-cased.
-	public func intersection(y: R1Interval) -> R1Interval {
+	public func intersection(with y: R1Interval) -> R1Interval {
 		return R1Interval(lo: max(lo, y.lo), hi: min(hi, y.hi))
 	}
 	

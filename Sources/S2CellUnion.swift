@@ -54,17 +54,17 @@ public struct S2CellUnion: S2Region {
 			if levelMod > 1 {
 				// Round up so that (new_level - min_level) is a multiple of level_mod.
 				// (Note that S2CellId::kMaxLevel is a multiple of 1, 2, and 3.)
-				newLevel += (S2CellId.maxLevel - (newLevel - minLevel)) % levelMod;
+				newLevel += (S2CellId.maxLevel - (newLevel - minLevel)) % levelMod
 				newLevel = min(S2CellId.maxLevel, newLevel)
 			}
 			if (newLevel == level) {
-				output.append(id);
+				output.append(id)
 			} else {
 				let end = id.childEnd(level: newLevel)
 				
 				var childId = id.childBegin()
 				while childId != end {
-					output.append(id);
+					output.append(id)
 					childId = childId.next()
 				}
 			}
@@ -121,21 +121,21 @@ public struct S2CellUnion: S2Region {
 				// "id" with respect to its parent, then check that the other three
 				// children all agree with "mask.
 				var mask = id.lowestOnBit << 1
-				mask = ~(mask + (mask << 1));
-				let idMasked = (id.id & mask);
+				mask = ~(mask + (mask << 1))
+				let idMasked = (id.id & mask)
 				if ((output[size - 3].id & mask) != idMasked
 					|| (output[size - 2].id & mask) != idMasked
 					|| (output[size - 1].id & mask) != idMasked || id.isFace) {
-					break;
+					break
 				}
 				
 				// Replace four children by their parent cell.
-				output.remove(at: size - 1);
-				output.remove(at: size - 2);
-				output.remove(at: size - 3);
+				output.remove(at: size - 1)
+				output.remove(at: size - 2)
+				output.remove(at: size - 3)
 				id = id.parent
 			}
-			output.append(id);
+			output.append(id)
 		}
 		
 		if output.count < cellIds.count {

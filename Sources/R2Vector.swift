@@ -28,6 +28,16 @@ public struct R2Vector: Comparable {
 		return (x * x) + (y * y)
 	}
 	
+	// ---
+	
+	public func dotProd(_ b: R2Vector) -> Double {
+		return x * b.x + y * b.y
+	}
+	
+	public func crossProd(_ b: R2Vector) -> Double {
+		return x * b.y - y * b.x
+	}
+	
 }
 
 public func ==(lhs: R2Vector, rhs: R2Vector) -> Bool {
@@ -61,10 +71,10 @@ public func *(lhs: R2Vector, m: Double) -> R2Vector {
 
 infix operator ⋅ { associativity left precedence 140 }
 public func ⋅(lhs: R2Vector, rhs: R2Vector) -> Double {
-	return lhs.x * rhs.x + lhs.y * rhs.y
+	return lhs.dotProd(rhs)
 }
 
 infix operator × { associativity left precedence 140 }
 public func ×(lhs: R2Vector, rhs: R2Vector) -> Double {
-	return lhs.x * rhs.y - lhs.y * rhs.x
+	return lhs.crossProd(rhs)
 }

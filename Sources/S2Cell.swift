@@ -91,7 +91,7 @@ public struct S2Cell: S2Region, Equatable {
 	}
 		
 	public func getEdge(_ k: Int) -> S2Point {
-		return S2Point.normalize(point: getRawEdge(k));
+		return S2Point.normalize(point: getRawEdge(k))
 	}
 	
 	public func getRawEdge(_ k: Int) -> S2Point {
@@ -153,6 +153,20 @@ public struct S2Cell: S2Region, Equatable {
 	}
 	
 	/**
+		Return the direction vector corresponding to the center in (s,t)-space of
+		the given cell. This is the point at which the cell is divided into four
+		subcells; it is not necessarily the centroid of the cell in (u,v)-space or
+		(x,y,z)-space. The point returned by GetCenterRaw is not necessarily unit length.
+	*/
+	public var center: S2Point {
+		return S2Point.normalize(point: rawCenter)
+	}
+	
+	public var rawCenter: S2Point {
+		return cellId.rawPoint
+	}
+	
+	/**
 		Return the center of the cell in (u,v) coordinates (see `S2Projections`).
 		Note that the center of the cell is defined as the point
 		at which it is recursively subdivided into four children; in general, it is
@@ -173,6 +187,14 @@ public struct S2Cell: S2Region, Equatable {
 		let y = S2Projections.stToUV(s: (1.0 / Double(S2Cell.maxCellSize)) * Double(sj))
 		
 		return R2Vector(x: x, y: y)
+	}
+	
+	public func contains(point p: S2Point) -> Bool {
+		// We can't just call XYZtoFaceUV, because for points that lie on the
+		// boundary between two faces (i.e. u or v is +1/-1) we need to return
+		// true for both adjacent cells.
+		guard let uvPoint = S2Projections.faceXyzToUv(face: Int(face), point: p) else { return false }
+		return uvPoint.x >= uv[0][0] && uvPoint.x <= uv[0][1] && uvPoint.y >= uv[1][0] && uvPoint.y <= uv[1][1]
 	}
 	
 	////////////////////////////////////////////////////////////////////////
@@ -215,7 +237,7 @@ public struct S2Cell: S2Region, Equatable {
 			let j = S2Projections.getVAxis(face: Int(face)).z == 0 ? (v < 0 ? 1 : 0) : (v > 0 ? 1 : 0)
 			
 			var lat = R1Interval.fromPointPair(p1: getLatitude(i: i, j: j), p2: getLatitude(i: 1 - i, j: 1 - j))
-			lat = lat.expanded(radius: S2Cell.maxError).intersection(y: S2LatLngRect.fullLat)
+			lat = lat.expanded(radius: S2Cell.maxError).intersection(with: S2LatLngRect.fullLat)
 			if (lat.lo == -M_PI_2 || lat.hi == M_PI_2) {
 				return S2LatLngRect(lat: lat, lng: S1Interval.full)
 			}

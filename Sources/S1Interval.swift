@@ -166,7 +166,7 @@ public struct S1Interval {
 	}
 	
 	/// Return true if the interval contains the given interval 'y'. Works for empty, full, and singleton intervals.
-	public func contains(other y: S1Interval) -> Bool {
+	public func contains(interval y: S1Interval) -> Bool {
 		// It might be helpful to compare the structure of these tests to
 		// the simpler Contains(double) method above.
 		
@@ -183,6 +183,26 @@ public struct S1Interval {
 		}
 	}
 	
+	/**
+		Returns true if the interior of this interval contains the entire interval
+		'y'. Note that x.InteriorContains(x) is true only when x is the empty or
+		full interval, and x.InteriorContains(S1Interval(p,p)) is equivalent to
+		x.InteriorContains(p).
+	*/
+	public func interiorContains(interval y: S1Interval) -> Bool {
+		if isInverted {
+			if !y.isInverted {
+				return y.lo > lo || y.hi < hi
+			}
+			return (y.lo > lo && y.hi < hi) || y.isEmpty
+		} else {
+			if y.isInverted {
+				return isFull || y.isEmpty
+			}
+			return (y.lo > lo && y.hi < hi) || isFull
+		}
+	}
+	
 	/// Return true if the interior of the interval contains the point 'p'.
 	public func interiorContains(point p: Double) -> Bool {
 		// Works for empty, full, and singleton intervals.
@@ -194,6 +214,45 @@ public struct S1Interval {
 			return p > lo || p < hi
 		} else {
 			return (p > lo && p < hi) || isFull
+		}
+	}
+	
+	/**
+		Return true if the two intervals contain any points in common. Note that
+		the point +/-Pi has two representations, so the intervals [-Pi,-3] and
+		[2,Pi] intersect, for example.
+	*/
+	public func intersects(with y: S1Interval) -> Bool {
+		if (isEmpty || y.isEmpty) {
+			return false
+		}
+		if isInverted {
+			// Every non-empty inverted interval contains Pi.
+			return y.isInverted || y.lo <= hi || y.hi >= lo
+		} else {
+			if y.isInverted {
+				return y.lo <= hi || y.hi >= lo
+			}
+			return y.lo <= hi && y.hi >= lo
+		}
+	}
+	
+	/**
+		Return true if the interior of this interval contains any point of the
+		interval 'y' (including its boundary). Works for empty, full, and singleton
+		intervals.
+	*/
+	public func interiorIntersects(with y: S1Interval) -> Bool {
+		if isEmpty || y.isEmpty || lo == hi {
+			return false
+		}
+		if isInverted {
+			return y.isInverted || y.lo < hi || y.hi > lo
+		} else {
+			if y.isInverted {
+				return y.lo < hi || y.hi > lo
+			}
+			return (y.lo < hi && y.hi > lo) || isFull
 		}
 	}
 	
@@ -234,7 +293,7 @@ public struct S1Interval {
 			if fastContains(point: y.hi) {
 				// Either this interval contains y, or the union of the two
 				// intervals is the Full() interval.
-				if contains(other: y) {
+				if contains(interval: y) {
 					return self // is_full() code path
 				}
 				return .full

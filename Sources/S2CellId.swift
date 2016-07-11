@@ -48,7 +48,7 @@ public struct S2CellId: Comparable {
 	public static let faceBits = 3
 	public static let numFaces = 6
 	public static let maxLevel = 30 // Valid levels: 0..MAX_LEVEL
-	public static let posBits = 2 * maxLevel + 1;
+	public static let posBits = 2 * maxLevel + 1
 	public static let maxSize = 1 << maxLevel
 	
 	// The following lookup tables are used to convert efficiently between an
@@ -211,15 +211,15 @@ public struct S2CellId: Comparable {
 		// Fast path for leaf cells.
 		guard !isLeaf else { return S2CellId.maxLevel }
 		var x = Int(id)
-		var level = -1;
+		var level = -1
 		if x != 0 {
-			level += 16;
+			level += 16
 		} else {
 			x = Int(id >> Int64(32))
 		}
 		// We only need to look at even-numbered bits to determine the
 		// level of a valid cell id.
-		x &= -x; // Get lowest bit.
+		x &= -x // Get lowest bit.
 		if ((x & 0x00005555) != 0) {
 			level += 8
 		}
@@ -312,7 +312,7 @@ public struct S2CellId: Comparable {
 	
 	public func childBegin(level: Int) -> S2CellId {
 		// assert (isValid() && level >= this.level() && level <= MAX_LEVEL);
-		return S2CellId(id: id - lowestOnBit + S2CellId.lowestOnBit(forLevel: level));
+		return S2CellId(id: id - lowestOnBit + S2CellId.lowestOnBit(forLevel: level))
 	}
 	
 	public func childEnd() -> S2CellId {
@@ -403,7 +403,7 @@ public struct S2CellId: Comparable {
 		var i = 0
 		var j = 0
 		var orientation: Int? = nil
-		let face = toFaceIJOrientation(i: &i, j: &j, orientation: &orientation);
+		let face = toFaceIJOrientation(i: &i, j: &j, orientation: &orientation)
 		
 		// Determine the i- and j-offsets to the closest neighboring cell in each
 		// direction. This involves looking at the next bit of "i" and "j" to
@@ -413,18 +413,18 @@ public struct S2CellId: Comparable {
 		var isame: Bool, jsame: Bool
 		var ioffset: Int, joffset: Int
 		if ((i & halfsize) != 0) {
-			ioffset = size;
-			isame = (i + size) < S2CellId.maxSize;
+			ioffset = size
+			isame = (i + size) < S2CellId.maxSize
 		} else {
-			ioffset = -size;
-			isame = (i - size) >= 0;
+			ioffset = -size
+			isame = (i - size) >= 0
 		}
 		if ((j & halfsize) != 0) {
-			joffset = size;
-			jsame = (j + size) < S2CellId.maxSize;
+			joffset = size
+			jsame = (j + size) < S2CellId.maxSize
 		} else {
-			joffset = -size;
-			jsame = (j - size) >= 0;
+			joffset = -size
+			jsame = (j - size) >= 0
 		}
 		
 		var output: [S2CellId] = []

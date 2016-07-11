@@ -37,18 +37,18 @@ public struct S2Point: Comparable, Hashable {
 	}
 	
 	/// Return a vector orthogonal to this one
-//	public S2Point ortho() {
-//	int k = largestAbsComponent();
-//	S2Point temp;
-//	if (k == 1) {
-//	temp = new S2Point(1, 0, 0);
-//	} else if (k == 2) {
-//	temp = new S2Point(0, 1, 0);
-//	} else {
-//	temp = new S2Point(0, 0, 1);
-//	}
-//	return S2Point.normalize(crossProd(this, temp));
-//	}
+	public var ortho: S2Point {
+		let k = largestAbsComponent
+		var temp: S2Point
+		if k == 1 {
+			temp = S2Point(x: 1, y: 0, z: 0)
+		} else if k == 2 {
+			temp = S2Point(x: 0, y: 1, z: 0)
+		} else {
+			temp = S2Point(x: 0, y: 0, z: 1)
+		}
+		return S2Point.normalize(point: crossProd(temp))
+	}
 	
 	/// Return the index of the largest component fabs
 	public var largestAbsComponent: Int {
@@ -85,7 +85,7 @@ public struct S2Point: Comparable, Hashable {
 	}
 	
 	/** Return the angle between two vectors in radians */
-	public func angle(x: S2Point) -> Double {
+	public func angle(to x: S2Point) -> Double {
 		return atan2((self × x).norm, self ⋅ x)
 	}
 	
@@ -102,6 +102,16 @@ public struct S2Point: Comparable, Hashable {
 		value += 37 * value + abs(y)._bitPattern
 		value += 37 * value + abs(z)._bitPattern
 		return Int(value ^ (value >> 32))
+	}
+	
+	// ---
+	
+	public func dotProd(_ b: S2Point) -> Double {
+		return x * b.x + y * b.y + z * b.z
+	}
+	
+	public func crossProd(_ b: S2Point) -> S2Point {
+		return S2Point(x: y * b.z - z * b.y, y: z * b.x - x * b.z, z: x * b.y - y * b.x)
 	}
 	
 }
@@ -151,10 +161,10 @@ public func *(lhs: S2Point, rhs: Double) -> S2Point {
 
 infix operator ⋅ { associativity left precedence 140 }
 public func ⋅(lhs: S2Point, rhs: S2Point) -> Double {
-	return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z
+	return lhs.dotProd(rhs)
 }
 
 infix operator × { associativity left precedence 140 }
 public func ×(lhs: S2Point, rhs: S2Point) -> S2Point {
-	return S2Point(x: lhs.y * rhs.z - lhs.z * rhs.y, y: lhs.z * rhs.x - lhs.x * rhs.z, z: lhs.x * rhs.y - lhs.y * rhs.x)
+	return lhs.crossProd(rhs)
 }
