@@ -64,7 +64,7 @@ public class S2RegionCoverer {
 		}
 	}
 	
-	public var _maxLevel: Int = S2CellId.maxLevel
+	private var _maxLevel: Int = S2CellId.maxLevel
 	public var maxLevel: Int {
 		get {
 			return _maxLevel
@@ -74,7 +74,7 @@ public class S2RegionCoverer {
 		}
 	}
 	
-	public var _levelMod: Int = 1
+	private var _levelMod: Int = 1
 	public var levelMod: Int {
 		get {
 			return _levelMod
@@ -84,7 +84,7 @@ public class S2RegionCoverer {
 		}
 	}
 	
-	public var _maxCells: Int = S2RegionCoverer.defaultMaxCells
+	private var _maxCells: Int = S2RegionCoverer.defaultMaxCells
 	/**
 		Sets the maximum desired number of cells in the approximation (defaults to
 		kDefaultMaxCells). Note the following:
