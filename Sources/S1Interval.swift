@@ -67,10 +67,10 @@ public struct S1Interval {
 	public static let full = S1Interval(lo: -M_PI, hi: M_PI, checked: true)
 	
 	/// Convenience method to construct an interval containing a single point.
-	public static func from(point p: Double) -> S1Interval {
+	public init(point p: Double) {
 		var p = p
 		if p == -M_PI { p = M_PI }
-		return S1Interval(lo: p, hi: p)
+		self.init(lo: p, hi: p)
 	}
 	
 	/**
@@ -257,6 +257,36 @@ public struct S1Interval {
 	}
 	
 	/**
+		Expand the interval by the minimum amount necessary so that it contains the
+		given point "p" (an angle in the range [-Pi, Pi]).
+	*/
+	public func add(point p: Double) -> S1Interval {
+		// assert (Math.abs(p) <= S2.M_PI);
+		var p = p
+		if p == -M_PI {
+			p = M_PI
+		}
+		
+		if fastContains(point: p) {
+			return self
+		}
+		
+		if isEmpty {
+			return S1Interval(point: p)
+		} else {
+			// Compute distance from p to each endpoint.
+			let dlo = S1Interval.positiveDistance(p, lo)
+			let dhi = S1Interval.positiveDistance(hi, p)
+			if dlo < dhi {
+				return S1Interval(lo: p, hi: hi)
+			} else {
+				return S1Interval(lo: lo, hi: p)
+			}
+			// Adding a point can never turn a non-full interval into a full one.
+		}
+	}
+	
+	/**
 		Return an interval that contains all points within a distance "radius" of
 		a point in this interval. Note that the expansion of an empty interval is
 		always empty. The radius must be non-negative.
@@ -267,7 +297,7 @@ public struct S1Interval {
 		
 		// Check whether this interval will be full after expansion, allowing
 		// for a 1-bit rounding error when computing each endpoint.
-		if (length + 2 * radius >= 2 * M_PI - 1e-15) {
+		if length + 2 * radius >= 2 * M_PI - 1e-15 {
 			return .full
 		}
 		

@@ -346,6 +346,38 @@ public struct S2LatLngRect: S2Region {
 		return lat.interiorIntersects(with: other.lat) && lng.interiorIntersects(with: other.lng)
 	}
 	
+	public func add(point p: S2Point) -> S2LatLngRect {
+		return add(point: S2LatLng(point: p))
+	}
+	
+	// Increase the size of the bounding rectangle to include the given point.
+	// The rectangle is expanded by the minimum amount possible.
+	public func add(point ll: S2LatLng) -> S2LatLngRect {
+		// assert (ll.isValid());
+		let newLat = lat.add(point: ll.lat.radians)
+		let newLng = lng.add(point: ll.lng.radians)
+		return S2LatLngRect(lat: newLat, lng: newLng)
+	}
+	
+	/**
+		Return a rectangle that contains all points whose latitude distance from
+		this rectangle is at most margin.lat(), and whose longitude distance from
+		this rectangle is at most margin.lng(). In particular, latitudes are
+		clamped while longitudes are wrapped. Note that any expansion of an empty
+		interval remains empty, and both components of the given margin must be
+		non-negative.
+	
+		NOTE: If you are trying to grow a rectangle by a certain *distance* on the
+		sphere (e.g. 5km), use the ConvolveWithCap() method instead.
+	*/
+	public func expanded(margin: S2LatLng) -> S2LatLngRect {
+		// assert (margin.lat().radians() >= 0 && margin.lng().radians() >= 0);
+		if isEmpty {
+			return self
+		}
+		return S2LatLngRect(lat: lat.expanded(radius: margin.lat.radians).intersection(with: S2LatLngRect.fullLat), lng: lng.expanded(radius: margin.lng.radians))
+	}
+	
 	/// Return the smallest rectangle containing the union of this rectangle and the given rectangle.
 	public func union(with other: S2LatLngRect) -> S2LatLngRect {
 		return S2LatLngRect(lat: lat.union(with: other.lat), lng: lng.union(with: other.lng))

@@ -46,7 +46,7 @@ public struct S2Loop: S2Region, Comparable {
 	private var index: S2EdgeIndex? = nil
 	
 	/// Maps each S2Point to its order in the loop, from 1 to numVertices.
-	private var vertexToIndex: [S2Point: Int] = [:]
+	private var vertexToIndex: [S2Point: Int]? = nil
 	
 	/// The index (into "vertices") of the vertex that comes first in the total ordering of all vertices in this loop.
 	private var firstLogicalVertex: Int = 0
@@ -154,9 +154,10 @@ public struct S2Loop: S2Region, Comparable {
 			vertices[i] = vertices[last - i];
 			vertices[last - i] = t;
 		}
-//		vertexToIndex = null
-//		index = null;
-//		originInside ^= true;
+		vertexToIndex = nil
+		index = nil
+		originInside = !originInside
+		
 		if bound.lat.lo > -M_PI_2 && bound.lat.hi < M_PI_2 {
 			// The complement of this loop contains both poles.
 			bound = .full
@@ -166,6 +167,139 @@ public struct S2Loop: S2Region, Comparable {
 		initFirstLogicalVertex()
 	}
 	
+	/// The point 'p' does not need to be normalized.
+	public func contains(point p: S2Point) -> Bool {
+		if !bound.contains(point: p) {
+			return false
+		}
+		
+		var inside = originInside
+		let origin = S2.origin
+//		let crosser = S2EdgeUtil.EdgeCrosser(origin, p, vertices[numVertices - 1])
+		
+		// The s2edgeindex library is not optimized yet for long edges,
+		// so the tradeoff to using it comes with larger loops.
+		if numVertices < 2000 {
+//			for (int i = 0; i < numVertices; i++) {
+//				inside ^= crosser.edgeOrVertexCrossing(vertices[i]);
+//			}
+		} else {
+//			DataEdgeIterator it = getEdgeIterator(numVertices);
+//			int previousIndex = -2;
+//			for (it.getCandidates(origin, p); it.hasNext(); it.next()) {
+//				int ai = it.index();
+//				if (previousIndex != ai - 1) {
+//					crosser.restartAt(vertices[ai]);
+//				}
+//				previousIndex = ai;
+//				inside ^= crosser.edgeOrVertexCrossing(vertex(ai + 1));
+//			}
+		}
+		
+		return inside;
+	}
+	
+	/**
+		Returns the shortest distance from a point P to this loop, given as the
+		angle formed between P, the origin and the nearest point on the loop to P.
+		This angle in radians is equivalent to the arclength along the unit sphere.
+	*/
+	public func getDistance(to p: S2Point) -> S1Angle {
+		let normalized = S2Point.normalize(point: p)
+		
+		// The furthest point from p on the sphere is its antipode, which is an
+		// angle of PI radians. This is an upper bound on the angle.
+		var minDistance = S1Angle(radians: M_PI)
+		for i in 0 ..< numVertices {
+			minDistance = min(minDistance, S2EdgeUtil.getDistance(x: normalized, a: vertex(i), b: vertex(i + 1)))
+		}
+		return minDistance
+	}
+	
+	/// Return true if this loop is valid.
+	public var isValid: Bool {
+		if numVertices < 3 {
+//			log.info("Degenerate loop");
+			return false
+		}
+		
+		// All vertices must be unit length.
+		for i in 0 ..< numVertices {
+			if !S2.isUnitLength(point: vertex(i)) {
+//				log.info("Vertex " + i + " is not unit length");
+				return false
+			}
+		}
+		
+		// Loops are not allowed to have any duplicate vertices.
+		var vmap: Set<S2Point> = []
+		for i in 0 ..< numVertices {
+			if !vmap.insert(vertex(i)).inserted {
+//				log.info("Duplicate vertices: " + previousVertexIndex + " and " + i);
+				return false
+			}
+		}
+		
+		// Non-adjacent edges are not allowed to intersect.
+//		var crosses = false
+//		DataEdgeIterator it = getEdgeIterator(numVertices);
+//		for (int a1 = 0; a1 < numVertices; a1++) {
+//			int a2 = (a1 + 1) % numVertices;
+//			EdgeCrosser crosser = new EdgeCrosser(vertex(a1), vertex(a2), vertex(0));
+//			int previousIndex = -2;
+//			for (it.getCandidates(vertex(a1), vertex(a2)); it.hasNext(); it.next()) {
+//				int b1 = it.index();
+//				int b2 = (b1 + 1) % numVertices;
+//				// If either 'a' index equals either 'b' index, then these two edges
+//				// share a vertex. If a1==b1 then it must be the case that a2==b2, e.g.
+//				// the two edges are the same. In that case, we skip the test, since we
+//				// don't want to test an edge against itself. If a1==b2 or b1==a2 then
+//				// we have one edge ending at the start of the other, or in other words,
+//				// the edges share a vertex -- and in S2 space, where edges are always
+//				// great circle segments on a sphere, edges can only intersect at most
+//				// once, so we don't need to do further checks in that case either.
+//				if (a1 != b2 && a2 != b1 && a1 != b1) {
+//					// WORKAROUND(shakusa, ericv): S2.robustCCW() currently
+//					// requires arbitrary-precision arithmetic to be truly robust. That
+//					// means it can give the wrong answers in cases where we are trying
+//					// to determine edge intersections. The workaround is to ignore
+//					// intersections between edge pairs where all four points are
+//					// nearly colinear.
+//					double abc = S2.angle(vertex(a1), vertex(a2), vertex(b1));
+//					boolean abcNearlyLinear = S2.approxEquals(abc, 0D, MAX_INTERSECTION_ERROR) ||
+//					S2.approxEquals(abc, S2.M_PI, MAX_INTERSECTION_ERROR);
+//					double abd = S2.angle(vertex(a1), vertex(a2), vertex(b2));
+//					boolean abdNearlyLinear = S2.approxEquals(abd, 0D, MAX_INTERSECTION_ERROR) ||
+//					S2.approxEquals(abd, S2.M_PI, MAX_INTERSECTION_ERROR);
+//					if (abcNearlyLinear && abdNearlyLinear) {
+//						continue;
+//					}
+//					
+//					if (previousIndex != b1) {
+//						crosser.restartAt(vertex(b1));
+//					}
+//					
+//					// Beware, this may return the loop is valid if there is a
+//					// "vertex crossing".
+//					// TODO(user): Fix that.
+//					crosses = crosser.robustCrossing(vertex(b2)) > 0;
+//					previousIndex = b2;
+//					if (crosses ) {
+//						log.info("Edges " + a1 + " and " + b1 + " cross");
+//						log.info(String.format("Edge locations in degrees: " + "%s-%s and %s-%s",
+//						new S2LatLng(vertex(a1)).toStringDegrees(),
+//						new S2LatLng(vertex(a2)).toStringDegrees(),
+//						new S2LatLng(vertex(b1)).toStringDegrees(),
+//						new S2LatLng(vertex(b2)).toStringDegrees()));
+//						return false
+//					}
+//				}
+//			}
+//		}
+
+		return true
+	}
+
 	private mutating func initOrigin() {
 		// The bounding box does not need to be correct before calling this
 		// function, but it must at least contain vertex(1) since we need to
@@ -184,11 +318,11 @@ public struct S2Loop: S2Region, Comparable {
 		// the fixed vector R = S2::Ortho(B) is on the left side of the wedge ABC.
 		// The test below is written so that B is inside if C=R but not if A=R.
 		
-//		originInside = false // Initialize before calling Contains().
-//		let v1Inside = S2.orderedCCW(a: vertex(1).ortho, b: vertex(0), c: vertex(2), o: vertex(1))
-//		if v1Inside != contains(point: vertex(1)) {
-//			originInside = true
-//		}
+		originInside = false // Initialize before calling Contains().
+		let v1Inside = S2.orderedCCW(a: vertex(1).ortho, b: vertex(0), c: vertex(2), o: vertex(1))
+		if v1Inside != contains(point: vertex(1)) {
+			originInside = true
+		}
 	}
 	
 	private mutating func initBound() {
@@ -198,45 +332,136 @@ public struct S2Loop: S2Region, Comparable {
 		// candy-cane stripe). Second, the loop may include one or both poles.
 		// Note that a small clockwise loop near the equator contains both poles.
 		
-//		let bounder = S2EdgeUtil.RectBounder()
-//		for i in 0 ... numVertices {
-//			bounder.addPoint(vertex(i))
+		var bounder = S2EdgeUtil.RectBounder()
+		for i in 0 ... numVertices {
+			bounder.add(point: vertex(i))
+		}
+		var b = bounder.bound
+		// Note that we need to initialize bound with a temporary value since
+		// contains() does a bounding rectangle check before doing anything else.
+		bound = .full
+		if contains(point: S2Point(x: 0, y: 0, z: 1)) {
+			b = S2LatLngRect(lat: R1Interval(lo: b.lat.lo, hi: M_PI_2), lng: .full)
+		}
+		// If a loop contains the south pole, then either it wraps entirely
+		// around the sphere (full longitude range), or it also contains the
+		// north pole in which case b.lng().isFull() due to the test above.
+		
+		if b.lng.isFull && contains(point: S2Point(x: 0, y: 0, z: -1)) {
+			b = S2LatLngRect(lat: R1Interval(lo: -M_PI_2, hi: b.lat.hi), lng: b.lng)
+		}
+		bound = b
+	}
+	
+	/**
+		Return the index of a vertex at point "p", or -1 if not found. The return
+		value is in the range 1..num_vertices_ if found.
+	*/
+	private mutating func findVertex(point p: S2Point) -> Int {
+		if vertexToIndex == nil {
+			vertexToIndex = [:]
+			for i in 1 ..< numVertices {
+				vertexToIndex?[vertex(i)] = i
+			}
+		}
+		return vertexToIndex?[p] ?? -1
+	}
+	
+	/**
+		This method encapsulates the common code for loop containment and
+		intersection tests. It is used in three slightly different variations to
+		implement contains(), intersects(), and containsOrCrosses().
+	
+		In a nutshell, this method checks all the edges of this loop (A) for
+		intersection with all the edges of B. It returns -1 immediately if any edge
+		intersections are found. Otherwise, if there are any shared vertices, it
+		returns the minimum value of the given WedgeRelation for all such vertices
+		(returning immediately if any wedge returns -1). Returns +1 if there are no
+		intersections and no shared vertices.
+	*/
+	private func checkEdgeCrossings(b: S2Loop, relation: WedgeRelation) -> Int {
+//		DataEdgeIterator it = getEdgeIterator(b.numVertices);
+//		int result = 1;
+//		// since 'this' usually has many more vertices than 'b', use the index on
+//		// 'this' and loop over 'b'
+//		for (int j = 0; j < b.numVertices(); ++j) {
+//		S2EdgeUtil.EdgeCrosser crosser =
+//		new S2EdgeUtil.EdgeCrosser(b.vertex(j), b.vertex(j + 1), vertex(0));
+//		int previousIndex = -2;
+//		for (it.getCandidates(b.vertex(j), b.vertex(j + 1)); it.hasNext(); it.next()) {
+//		int i = it.index();
+//		if (previousIndex != i - 1) {
+//		crosser.restartAt(vertex(i));
 //		}
-//		let b = bounder.bound
-//		// Note that we need to initialize bound with a temporary value since
-//		// contains() does a bounding rectangle check before doing anything else.
-//		bound = .full
-//		if contains(point: S2Point(x: 0, y: 0, z: 1)) {
-//			b = S2LatLngRect(lat: R1Interval(lo: b.lat.lo, hi: M_PI_2), lng: .full)
+//		previousIndex = i;
+//		int crossing = crosser.robustCrossing(vertex(i + 1));
+//		if (crossing < 0) {
+//		continue;
 //		}
-//		// If a loop contains the south pole, then either it wraps entirely
-//		// around the sphere (full longitude range), or it also contains the
-//		// north pole in which case b.lng().isFull() due to the test above.
-//		
-//		if b.lng.isFull && contains(point: S2Point(x: 0, y: 0, z: -1)) {
-//			b = S2LatLngRect(lat: R1Interval(lo: -M_PI_2, hi: b.lat.hi), lng: b.lng)
+//		if (crossing > 0) {
+//		return -1; // There is a proper edge crossing.
 //		}
-//		bound = b
+//		if (vertex(i + 1).equals(b.vertex(j + 1))) {
+//		result = Math.min(result, relation.test(
+//		vertex(i), vertex(i + 1), vertex(i + 2), b.vertex(j), b.vertex(j + 2)));
+//		if (result < 0) {
+//		return result;
+//		}
+//		}
+//		}
+//		}
+//		return result;
+		return 0
 	}
 	
 	////////////////////////////////////////////////////////////////////////
 	// MARK: S2Region
 	////////////////////////////////////////////////////////////////////////
 	
+	/// Return a bounding spherical cap.
 	public var capBound: S2Cap {
 		return bound.capBound
 	}
 	
+	/// Return a bounding latitude-longitude rectangle.
 	public var rectBound: S2LatLngRect {
 		return bound
 	}
 	
+	/**
+		If this method returns true, the region completely contains the given cell.
+		Otherwise, either the region does not contain the cell or the containment
+		relationship could not be determined.
+	*/
 	public func contains(cell: S2Cell) -> Bool {
-		return false
+		// It is faster to construct a bounding rectangle for an S2Cell than for
+		// a general polygon. A future optimization could also take advantage of
+		// the fact than an S2Cell is convex.
+		
+		let cellBound = cell.rectBound
+		if !bound.contains(other: cellBound) {
+			return false
+		}
+		let cellLoop = S2Loop(cell: cell, bound: cellBound)
+		return contains(cellLoop)
 	}
 	
+	/**
+		If this method returns false, the region does not intersect the given cell.
+		Otherwise, either region intersects the cell, or the intersection
+		relationship could not be determined.
+	*/
 	public func mayIntersect(cell: S2Cell) -> Bool {
-		return false
+		// It is faster to construct a bounding rectangle for an S2Cell than for
+		// a general polygon. A future optimization could also take advantage of
+		// the fact than an S2Cell is convex.
+		
+		let cellBound = cell.rectBound
+		if !bound.intersects(with: cellBound) {
+			return false
+		}
+		let cellLoop = S2Loop(cell: cell, bound: cellBound)
+		return cellLoop.intersects(with: self)
 	}
 	
 }

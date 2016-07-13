@@ -13,6 +13,21 @@
 #endif
 
 /**
+* A wedge relation's test method accepts two edge chains A=(a0,a1,a2) and
+* B=(b0,b1,b2) where a1==b1, and returns either -1, 0, or 1 to indicate the
+* relationship between the region to the left of A and the region to the left
+* of B. Wedge relations are used to determine the local relationship between
+* two polygons that share a common vertex.
+*
+*  All wedge relations require that a0 != a2 and b0 != b2. Other degenerate
+* cases (such as a0 == b2) are handled as expected. The parameter "ab1"
+* denotes the common vertex a1 == b1.
+*/
+public protocol WedgeRelation {
+	func test(a0: S2Point, ab1: S2Point, a2: S2Point, b0: S2Point, b2: S2Point) -> Int
+}
+
+/**
 	This class contains various utility functions related to edges. It collects
 	together common code that is needed to implement polygonal geometry such as
 	polylines, loops, and general polygons.
@@ -65,6 +80,95 @@ public struct S2EdgeUtil {
 			acb = -S2.robustCCW(a: a, b: b, c: c, aCrossB: aCrossB)
 		}
 		
+	}
+	
+	/**
+		This class computes a bounding rectangle that contains all edges defined by
+		a vertex chain v0, v1, v2, ... All vertices must be unit length. Note that
+		the bounding rectangle of an edge can be larger than the bounding rectangle
+		of its endpoints, e.g. consider an edge that passes through the north pole.
+	*/
+	public struct RectBounder {
+		// The previous vertex in the chain.
+		private var a: S2Point = S2Point()
+		
+		// The corresponding latitude-longitude.
+		private var aLatLng: S2LatLng = S2LatLng()
+		
+		// The current bounding rectangle.
+		/// The bounding rectangle of the edge chain that connects the vertices defined so far.
+		public private(set) var bound: S2LatLngRect = .empty
+		
+		public init() {
+			
+		}
+		
+		/**
+			This method is called to add each vertex to the chain. 'b' must point to
+			fixed storage that persists for the lifetime of the RectBounder.
+		*/
+		public mutating func add(point b: S2Point) {
+			// assert (S2.isUnitLength(b));
+			
+			let bLatLng = S2LatLng(point: b)
+			
+			if bound.isEmpty {
+				bound = bound.add(point: bLatLng)
+			} else {
+				// We can't just call bound.addPoint(bLatLng) here, since we need to
+				// ensure that all the longitudes between "a" and "b" are included.
+				bound = bound.union(with: S2LatLngRect(lo: aLatLng, hi: bLatLng))
+				
+				// Check whether the min/max latitude occurs in the edge interior.
+				// We find the normal to the plane containing AB, and then a vector
+				// "dir" in this plane that also passes through the equator. We use
+				// RobustCrossProd to ensure that the edge normal is accurate even
+				// when the two points are very close together.
+				let aCrossB = S2.robustCrossProd(a: a, b: b)
+				let dir = aCrossB.crossProd(S2Point(x: 0, y: 0, z: 1))
+				let da = dir.dotProd(a)
+				let db = dir.dotProd(b)
+				
+				if da * db < 0 {
+					// Minimum/maximum latitude occurs in the edge interior. This affects
+					// the latitude bounds but not the longitude bounds.
+					let absLat = acos(abs(aCrossB.get(axis: 2) / aCrossB.norm))
+					var lat = bound.lat
+					if da < 0 {
+						// It's possible that absLat < lat.lo() due to numerical errors.
+						lat = R1Interval(lo: lat.lo, hi: max(absLat, bound.lat.hi))
+					} else {
+						lat = R1Interval(lo: min(-absLat, bound.lat.lo), hi: lat.hi)
+					}
+					bound = S2LatLngRect(lat: lat, lng: bound.lng)
+				}
+			}
+			a = b
+			aLatLng = bLatLng
+		}
+	}
+	
+	/**
+		Given a point X and an edge AB, return the distance ratio AX / (AX + BX).
+		If X happens to be on the line segment AB, this is the fraction "t" such
+		that X == Interpolate(A, B, t). Requires that A and B are distinct.
+	*/
+	public static func getDistanceFraction(x: S2Point, a0: S2Point, a1: S2Point) -> Double {
+		precondition(a0 != a1)
+		let d0 = x.angle(to: a0)
+		let d1 = x.angle(to: a1)
+		return d0 / (d0 + d1)
+	}
+	
+	/**
+		Return the minimum distance from X to any point on the edge AB. The result
+		is very accurate for small distances but may have some numerical error if
+		the distance is large (approximately Pi/2 or greater). The case A == B is
+		handled correctly. Note: x, a and b must be of unit length. Throws
+		IllegalArgumentException if this is not the case.
+	*/
+	public static func getDistance(x: S2Point, a: S2Point, b: S2Point) -> S1Angle {
+		return getDistance(x: x, a: a, b: b, aCrossB: S2.robustCrossProd(a: a, b: b))
 	}
 	
 	/**
