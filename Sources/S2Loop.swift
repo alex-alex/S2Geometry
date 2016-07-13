@@ -438,12 +438,14 @@ public struct S2Loop: S2Region, Comparable {
 		// a general polygon. A future optimization could also take advantage of
 		// the fact than an S2Cell is convex.
 		
-		let cellBound = cell.rectBound
-		if !bound.contains(other: cellBound) {
-			return false
-		}
-		let cellLoop = S2Loop(cell: cell, bound: cellBound)
-		return contains(cellLoop)
+//		let cellBound = cell.rectBound
+//		if !bound.contains(other: cellBound) {
+//			return false
+//		}
+//		let cellLoop = S2Loop(cell: cell, bound: cellBound)
+//		return contains(cellLoop)
+		
+		return false
 	}
 	
 	/**
@@ -456,12 +458,14 @@ public struct S2Loop: S2Region, Comparable {
 		// a general polygon. A future optimization could also take advantage of
 		// the fact than an S2Cell is convex.
 		
-		let cellBound = cell.rectBound
-		if !bound.intersects(with: cellBound) {
-			return false
-		}
-		let cellLoop = S2Loop(cell: cell, bound: cellBound)
-		return cellLoop.intersects(with: self)
+//		let cellBound = cell.rectBound
+//		if !bound.intersects(with: cellBound) {
+//			return false
+//		}
+//		let cellLoop = S2Loop(cell: cell, bound: cellBound)
+//		return cellLoop.intersects(with: self)
+		
+		return false
 	}
 	
 }
