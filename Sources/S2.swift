@@ -20,10 +20,6 @@ internal extension Double {
 
 public struct S2 {
 	
-	enum Error: ErrorProtocol {
-		case IllegalArgumentException
-	}
-	
 	// Together these flags define a cell orientation. If SWAP_MASK
 	// is true, then canonical traversal order is flipped around the
 	// diagonal (i.e. i and j are swapped with each other). If
@@ -68,8 +64,8 @@ public struct S2 {
 		
 		- Returns: A bit mask containing some combination of {@link #SWAP_MASK} and {@link #INVERT_MASK}.
 	*/
-	public static func posToOrientation(position: Int) throws -> Int {
-		guard 0 <= position && position < 4 else { throw Error.IllegalArgumentException }
+	public static func posToOrientation(position: Int) -> Int {
+		precondition(0 <= position && position < 4)
 		return posToOrientation[position]
 	}
 	
@@ -93,9 +89,9 @@ public struct S2 {
 		
 		- Returns: The IJ-index where `0->(0,0), 1->(0,1), 2->(1,0), 3->(1,1)`.
 	*/
-	public static func posToIJ(orientation: Int, position: Int) throws -> Int {
-		guard 0 <= orientation && orientation < 4 else { throw Error.IllegalArgumentException }
-		guard 0 <= position && position < 4 else { throw Error.IllegalArgumentException }
+	public static func posToIJ(orientation: Int, position: Int) -> Int {
+		precondition(0 <= orientation && orientation < 4)
+		precondition(0 <= position && position < 4)
 		return posToIJ[orientation][position]
 	}
 	
@@ -119,9 +115,9 @@ public struct S2 {
 		
 		- Returns: The position of the subcell in the Hilbert traversal, in the range [0,3].
 	*/
-	public static func toPos(orientation: Int, ijIndex: Int) throws -> Int {
-		guard 0 <= orientation && orientation < 4 else { throw Error.IllegalArgumentException }
-		guard 0 <= ijIndex && ijIndex < 4 else { throw Error.IllegalArgumentException }
+	public static func toPos(orientation: Int, ijIndex: Int) -> Int {
+		precondition(0 <= orientation && orientation < 4)
+		precondition(0 <= ijIndex && ijIndex < 4)
 		return ijToPos[orientation][ijIndex]
 	}
 	
@@ -310,7 +306,7 @@ public struct S2 {
 		let sa = b.angle(to: c)
 		let sb = c.angle(to: a)
 		let sc = a.angle(to: b)
-		let s = 0.5 * (sa + sb + sc);
+		let s = 0.5 * (sa + sb + sc)
 		if s >= 3e-4 {
 			// Consider whether Girard's formula might be more accurate.
 			let s2 = s * s
@@ -324,12 +320,7 @@ public struct S2 {
 			}
 		}
 		// Use l'Huilier's formula.
-		return 4
-		* atan(
-		sqrt(
-		max(0.0,
-		tan(0.5 * s) * tan(0.5 * (s - sa)) * tan(0.5 * (s - sb))
-		* tan(0.5 * (s - sc)))))
+		return 4 * atan(sqrt(max(0.0, tan(0.5 * s) * tan(0.5 * (s - sa)) * tan(0.5 * (s - sb)) * tan(0.5 * (s - sc)))))
 	}
 	
 	/**
@@ -351,6 +342,77 @@ public struct S2 {
 	/// Like Area(), but returns a positive value for counterclockwise triangles and a negative value otherwise.
 	public static func signedArea(a: S2Point, b: S2Point, c: S2Point) -> Double {
 		return area(a: a, b: b, c: c) * Double(robustCCW(a: a, b: b, c: c))
+	}
+	
+	// About centroids:
+	// ----------------
+	//
+	// There are several notions of the "centroid" of a triangle. First, there
+	// // is the planar centroid, which is simply the centroid of the ordinary
+	// (non-spherical) triangle defined by the three vertices. Second, there is
+	// the surface centroid, which is defined as the intersection of the three
+	// medians of the spherical triangle. It is possible to show that this
+	// point is simply the planar centroid projected to the surface of the
+	// sphere. Finally, there is the true centroid (mass centroid), which is
+	// defined as the area integral over the spherical triangle of (x,y,z)
+	// divided by the triangle area. This is the point that the triangle would
+	// rotate around if it was spinning in empty space.
+	//
+	// The best centroid for most purposes is the true centroid. Unlike the
+	// planar and surface centroids, the true centroid behaves linearly as
+	// regions are added or subtracted. That is, if you split a triangle into
+	// pieces and compute the average of their centroids (weighted by triangle
+	// area), the result equals the centroid of the original triangle. This is
+	// not true of the other centroids.
+	//
+	// Also note that the surface centroid may be nowhere near the intuitive
+	// "center" of a spherical triangle. For example, consider the triangle
+	// with vertices A=(1,eps,0), B=(0,0,1), C=(-1,eps,0) (a quarter-sphere).
+	// The surface centroid of this triangle is at S=(0, 2*eps, 1), which is
+	// within a distance of 2*eps of the vertex B. Note that the median from A
+	// (the segment connecting A to the midpoint of BC) passes through S, since
+	// this is the shortest path connecting the two endpoints. On the other
+	// hand, the true centroid is at M=(0, 0.5, 0.5), which when projected onto
+	// the surface is a much more reasonable interpretation of the "center" of
+	// this triangle.
+	
+	/**
+		Return the centroid of the planar triangle ABC. This can be normalized to
+		unit length to obtain the "surface centroid" of the corresponding spherical
+		triangle, i.e. the intersection of the three medians. However, note that
+		for large spherical triangles the surface centroid may be nowhere near the
+		intuitive "center" (see example above).
+	*/
+	public static func planarCentroid(a: S2Point, b: S2Point, c: S2Point) -> S2Point {
+		return S2Point(x: (a.x + b.x + c.x) / 3.0, y: (a.y + b.y + c.y) / 3.0, z: (a.z + b.z + c.z) / 3.0)
+	}
+	
+	/**
+		Returns the true centroid of the spherical triangle ABC multiplied by the
+		signed area of spherical triangle ABC. The reasons for multiplying by the
+		signed area are (1) this is the quantity that needs to be summed to compute
+		the centroid of a union or difference of triangles, and (2) it's actually
+		easier to calculate this way.
+	*/
+	public static func trueCentroid(a: S2Point, b: S2Point, c: S2Point) -> S2Point {
+		// I couldn't find any references for computing the true centroid of a
+		// spherical triangle... I have a truly marvellous demonstration of this
+		// formula which this margin is too narrow to contain :)
+		
+		// assert (isUnitLength(a) && isUnitLength(b) && isUnitLength(c));
+		let sina = b.crossProd(c).norm
+		let sinb = c.crossProd(a).norm
+		let sinc = a.crossProd(b).norm
+		let ra = (sina == 0) ? 1 : (asin(sina) / sina)
+		let rb = (sinb == 0) ? 1 : (asin(sinb) / sinb)
+		let rc = (sinc == 0) ? 1 : (asin(sinc) / sinc)
+		
+		// Now compute a point M such that M.X = rX * det(ABC) / 2 for X in A,B,C.
+		let x = S2Point(x: a.x, y: b.x, z: c.x)
+		let y = S2Point(x: a.y, y: b.y, z: c.y)
+		let z = S2Point(x: a.z, y: b.z, z: c.z)
+		let r = S2Point(x: ra, y: rb, z: rc)
+		return S2Point(x: 0.5 * y.crossProd(z).dotProd(r), y: 0.5 * z.crossProd(x).dotProd(r), z: 0.5 * x.crossProd(y).dotProd(r))
 	}
 	
 	/**
@@ -630,6 +692,16 @@ public struct S2 {
 		// it ensures that turnAngle(a,b,c) == -turnAngle(c,b,a) for all a,b,c.
 		let outAngle = b.crossProd(a).angle(to: c.crossProd(b))
 		return (robustCCW(a: a, b: b, c: c) > 0) ? outAngle : -outAngle
+	}
+	
+	/// Return true if two points are within the given distance of each other (mainly useful for testing).
+	public static func approxEquals(a: S2Point, b: S2Point, maxError: Double = 1e-15) -> Bool {
+		return a.angle(to: b) <= maxError
+	}
+	
+	/// Return true if two points are within the given distance of each other (mainly useful for testing).
+	public static func approxEquals(a: Double, b: Double, maxError: Double = 1e-15) -> Bool {
+		return abs(a - b) <= maxError
 	}
 	
 	// Don't instantiate

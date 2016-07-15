@@ -16,9 +16,9 @@
 public struct S2AreaCentroid {
 	
 	public let area: Double
-	public let centroid: S2Point?
+	public let centroid: S2Point
 	
-	public init(area: Double, centroid: S2Point? = nil) {
+	public init(area: Double, centroid: S2Point) {
 		self.area = area
 		self.centroid = centroid
 	}

@@ -468,10 +468,10 @@ public struct S2LatLngRect: S2Region {
 		var poleZ: Double, poleAngle: Double
 		if lat.lo + lat.hi < 0 {
 			// South pole axis yields smaller cap.
-			poleZ = -1;
+			poleZ = -1
 			poleAngle = M_PI_2 + lat.hi
 		} else {
-			poleZ = 1;
+			poleZ = 1
 			poleAngle = M_PI_2 - lat.lo
 		}
 		let poleCap = S2Cap(axis: S2Point(x: 0, y: 0, z: poleZ), angle: S1Angle(radians: poleAngle))
@@ -483,7 +483,7 @@ public struct S2LatLngRect: S2Region {
 		let lngSpan = lng.hi - lng.lo
 		if remainder(lngSpan, 2 * M_PI) >= 0 {
 			if lngSpan < 2 * M_PI {
-				var midCap = S2Cap(axis: center.point, angle: S1Angle(radians: 0));
+				var midCap = S2Cap(axis: center.point, angle: S1Angle(radians: 0))
 				for k in 0 ..< 4 {
 					midCap = midCap.add(point: getVertex(k: k).point)
 				}
@@ -492,7 +492,7 @@ public struct S2LatLngRect: S2Region {
 				}
 			}
 		}
-		return poleCap;
+		return poleCap
 	}
 	
 	public var rectBound: S2LatLngRect {

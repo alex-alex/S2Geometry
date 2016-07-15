@@ -40,7 +40,7 @@
 	representations. For cells that represent 2D regions rather than discrete
 	point, it is better to use the S2Cell class.
 */
-public struct S2CellId: Comparable {
+public struct S2CellId: Comparable, Hashable {
 	
 	// Although only 60 bits are needed to represent the index of a leaf
 	// cell, we need an extra bit in order to represent the position of
@@ -94,10 +94,10 @@ public struct S2CellId: Comparable {
 	
 	private static func loadLookup() {
 		guard !lookupLoaded else { return }
-		try! S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: 0, pos: 0, orientation: 0)
-		try! S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: swapMask, pos: 0, orientation: swapMask)
-		try! S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: invertMask, pos: 0, orientation: invertMask)
-		try! S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: swapMask | invertMask, pos: 0, orientation: swapMask | invertMask)
+		S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: 0, pos: 0, orientation: 0)
+		S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: swapMask, pos: 0, orientation: swapMask)
+		S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: invertMask, pos: 0, orientation: invertMask)
+		S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: swapMask | invertMask, pos: 0, orientation: swapMask | invertMask)
 		lookupLoaded = true
 	}
 	
@@ -109,17 +109,17 @@ public struct S2CellId: Comparable {
 	
 	public let id: Int64
 	
+	public var uid: UInt64 {
+		return UInt64(bitPattern: id)
+	}
+	
 	public init(id: Int64 = 0) {
 		self.id = id
 	}
 	
-	public static var none: S2CellId {
-		return S2CellId()
-	}
+	public static let none = S2CellId()
 	
-	public static var sentinel: S2CellId {
-		return S2CellId(id: .max)
-	}
+	public static let sentinel = S2CellId(id: .max)
 	
 	/**
 		Return a cell given its face (range 0..5), 61-bit Hilbert curve position
@@ -198,7 +198,7 @@ public struct S2CellId: Comparable {
 	
 	/// Which cube face this cell belongs to, in the range 0..5.
 	public var face: Int {
-		return Int(id >> Int64(S2CellId.posBits))
+		return Int(uid >> UInt64(S2CellId.posBits))
 	}
 	
 	/// The position of the cell center along the Hilbert curve over this face, in the range 0..(2**kPosBits-1).
@@ -210,12 +210,12 @@ public struct S2CellId: Comparable {
 	public var level: Int {
 		// Fast path for leaf cells.
 		guard !isLeaf else { return S2CellId.maxLevel }
-		var x = Int(id)
+		var x = Int32(truncatingBitPattern: id)
 		var level = -1
 		if x != 0 {
 			level += 16
 		} else {
-			x = Int(id >> Int64(32))
+			x = Int32(truncatingBitPattern: id >> Int64(32))
 		}
 		// We only need to look at even-numbered bits to determine the
 		// level of a valid cell id.
@@ -345,7 +345,7 @@ public struct S2CellId: Comparable {
 		around from the last face to the first or vice versa.
 	*/
 	public func next() -> S2CellId {
-		return S2CellId(id: id + (lowestOnBit << 1))
+		return S2CellId(id: Int64.addWithOverflow(id, lowestOnBit << 1).0)
 	}
 	
 	/**
@@ -354,7 +354,7 @@ public struct S2CellId: Comparable {
 		around from the last face to the first or vice versa.
 	*/
 	public func prev() -> S2CellId {
-		return S2CellId(id: id - (lowestOnBit << 1))
+		return S2CellId(id: Int64.subtractWithOverflow(id, lowestOnBit << 1).0)
 	}
 	
 	/**
@@ -581,6 +581,10 @@ public struct S2CellId: Comparable {
 		return id & -id
 	}
 	
+	public var hashValue: Int {
+		return Int((id >> 32) + id)
+	}
+	
 	/**
 		Return the lowest-numbered bit that is on for this cell id, which is equal
 		to (uint64(1) << (2 * (MAX_LEVEL - level))). So for example, a.lsb() <=
@@ -609,15 +613,17 @@ public struct S2CellId: Comparable {
 	
 	/// Returns true if x1 < x2, when both values are treated as unsigned.
 	public static func unsignedLongLessThan(lhs: Int64, rhs: Int64) -> Bool {
-		return (lhs + .min) < (rhs + .min)
+//		return (lhs + .min) < (rhs + .min)
+		return UInt64(bitPattern: lhs) < UInt64(bitPattern: rhs)
 	}
 	
 	/// Returns true if x1 > x2, when both values are treated as unsigned.
 	public static func unsignedLongGreaterThan(lhs: Int64, rhs: Int64) -> Bool {
-		return (lhs + .min) > (rhs + .min)
+//		return (lhs + .min) > (rhs + .min)
+		return UInt64(bitPattern: lhs) > UInt64(bitPattern: rhs)
 	}
 	
-	private static func initLookupCell(level: Int, i: Int, j: Int, origOrientation: Int, pos: Int, orientation: Int) throws {
+	private static func initLookupCell(level: Int, i: Int, j: Int, origOrientation: Int, pos: Int, orientation: Int) {
 		if level == lookupBits {
 			let ij = (i << lookupBits) + j
 			lookup.pos[(ij << 2) + origOrientation] = (pos << 2) + orientation
@@ -630,9 +636,9 @@ public struct S2CellId: Comparable {
 			pos <<= 2
 			// Initialize each sub-cell recursively.
 			for subPos in 0 ..< 4 {
-				let ij = try S2.posToIJ(orientation: orientation, position: subPos)
-				let orientationMask = try S2.posToOrientation(position: subPos)
-				try initLookupCell(level: level, i: i + (ij >> 1), j: j + (ij & 1), origOrientation: origOrientation, pos: pos + subPos, orientation: orientation ^ orientationMask)
+				let ij = S2.posToIJ(orientation: orientation, position: subPos)
+				let orientationMask = S2.posToOrientation(position: subPos)
+				initLookupCell(level: level, i: i + (ij >> 1), j: j + (ij & 1), origOrientation: origOrientation, pos: pos + subPos, orientation: orientation ^ orientationMask)
 			}
 		}
 	}

@@ -223,7 +223,7 @@ public struct S1Interval {
 		[2,Pi] intersect, for example.
 	*/
 	public func intersects(with y: S1Interval) -> Bool {
-		if (isEmpty || y.isEmpty) {
+		if isEmpty || y.isEmpty {
 			return false
 		}
 		if isInverted {

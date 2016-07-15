@@ -98,10 +98,11 @@ public struct S2Point: Comparable, Hashable {
 	
 	public var hashValue: Int {
 		var value: UInt64 = 17
-		value += 37 * value + abs(x)._bitPattern
-		value += 37 * value + abs(y)._bitPattern
-		value += 37 * value + abs(z)._bitPattern
-		return Int(value ^ (value >> 32))
+		value = UInt64.addWithOverflow(value, UInt64.multiplyWithOverflow(37, UInt64.addWithOverflow(value, abs(x)._bitPattern).0).0).0
+		value = UInt64.addWithOverflow(value, UInt64.multiplyWithOverflow(37, UInt64.addWithOverflow(value, abs(y)._bitPattern).0).0).0
+		value = UInt64.addWithOverflow(value, UInt64.multiplyWithOverflow(37, UInt64.addWithOverflow(value, abs(z)._bitPattern).0).0).0
+		value ^= (value >> 32)
+		return unsafeBitCast(value, to: Int.self)
 	}
 	
 	// ---
@@ -157,6 +158,10 @@ public func -(lhs: S2Point, rhs: S2Point) -> S2Point {
 
 public func *(lhs: S2Point, rhs: Double) -> S2Point {
 	return S2Point(x: lhs.x * rhs, y: lhs.y * rhs, z: lhs.z * rhs)
+}
+
+public func /(lhs: S2Point, rhs: Double) -> S2Point {
+	return S2Point(x: lhs.x / rhs, y: lhs.y / rhs, z: lhs.z / rhs)
 }
 
 infix operator ⋅ { associativity left precedence 140 }

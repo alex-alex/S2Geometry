@@ -36,16 +36,16 @@ public struct S2Cell: S2Region, Equatable {
 	}
 	
 	/// An S2Cell always corresponds to a particular S2CellId. The other constructors are just convenience methods.
-	public init(id: S2CellId) {
-		cellId = id
+	public init(cellId: S2CellId) {
+		self.cellId = cellId
 		
 		var i = 0
 		var j = 0
 		var mOrientation: Int? = 0
 		
-		face = UInt8(id.toFaceIJOrientation(i: &i, j: &j, orientation: &mOrientation))
+		face = UInt8(cellId.toFaceIJOrientation(i: &i, j: &j, orientation: &mOrientation))
 		orientation = UInt8(mOrientation!)
-		level = UInt8(id.level)
+		level = UInt8(cellId.level)
 		
 		let cellSize = 1 << (S2CellId.maxLevel - Int(level))
 		var _uv: [[Double]] = [[0, 0], [0, 0]]
@@ -61,16 +61,16 @@ public struct S2Cell: S2Region, Equatable {
 	
 	// This is a static method in order to provide named parameters.
 	public init(face: Int, pos: UInt8, level: Int) {
-		self.init(id: S2CellId(face: face, pos: Int64(pos), level: level))
+		self.init(cellId: S2CellId(face: face, pos: Int64(pos), level: level))
 	}
 	
 	// Convenience methods.
 	public init(point: S2Point) {
-		self.init(id: S2CellId(point: point))
+		self.init(cellId: S2CellId(point: point))
 	}
 	
 	public init(latlng: S2LatLng) {
-		self.init(id: S2CellId(latlng: latlng))
+		self.init(cellId: S2CellId(latlng: latlng))
 	}
 	
 	public var isLeaf: Bool {
@@ -121,7 +121,7 @@ public struct S2Cell: S2Region, Equatable {
 	
 		except that it is more than two times faster.
 	*/
-	public func subdivide() throws -> [S2Cell] {
+	public func subdivide() -> [S2Cell] {
 		// This function is equivalent to just iterating over the child cell ids
 		// and calling the S2Cell constructor, but it is about 2.5 times faster.
 		
@@ -136,7 +136,7 @@ public struct S2Cell: S2Region, Equatable {
 		for pos in 0 ..< 4 {
 			
 			var _uv: [[Double]] = [[0, 0], [0, 0]]
-			let ij = try S2.posToIJ(orientation: Int(orientation), position: pos)
+			let ij = S2.posToIJ(orientation: Int(orientation), position: pos)
 			
 			for d in 0 ..< 2 {
 				// The dimension 0 index (i/u) is in bit 1 of ij.
@@ -144,7 +144,7 @@ public struct S2Cell: S2Region, Equatable {
 				_uv[d][m] = uvMid.get(index: d)
 				_uv[d][1 - m] = uv[d][1 - m]
 			}
-			let child = try S2Cell(cellId: id, face: face, level: level + 1, orientation: orientation ^ UInt8(S2.posToOrientation(position: pos)), uv: _uv)
+			let child = S2Cell(cellId: id, face: face, level: level + 1, orientation: orientation ^ UInt8(S2.posToOrientation(position: pos)), uv: _uv)
 			children.append(child)
 			
 			id = id.next()
@@ -197,6 +197,57 @@ public struct S2Cell: S2Region, Equatable {
 		return uvPoint.x >= uv[0][0] && uvPoint.x <= uv[0][1] && uvPoint.y >= uv[1][0] && uvPoint.y <= uv[1][1]
 	}
 	
+	/**
+	* Return the average area for cells at the given level.
+	*/
+	public static func averageArea(level: Int) -> Double {
+		return S2Projections.avgArea.getValue(level: level)
+	}
+	
+	/**
+		Return the average area of cells at this level. This is accurate to within
+		a factor of 1.7 (for S2_QUADRATIC_PROJECTION) and is extremely cheap to compute.
+	*/
+	public var averageArea: Double {
+		return S2Cell.averageArea(level: Int(level))
+	}
+	
+	/**
+		Return the approximate area of this cell. This method is accurate to within
+		3% percent for all cell sizes and accurate to within 0.1% for cells at
+		level 5 or higher (i.e. 300km square or smaller). It is moderately cheap to compute.
+	*/
+	public var approxArea: Double {
+		// All cells at the first two levels have the same area.
+		if level < 2 { return averageArea }
+		
+		// First, compute the approximate area of the cell when projected
+		// perpendicular to its normal. The cross product of its diagonals gives
+		// the normal, and the length of the normal is twice the projected area.
+		let flatArea = 0.5 * (getVertex(2) - getVertex(0)).crossProd((getVertex(3) - getVertex(1))).norm
+		
+		// Now, compensate for the curvature of the cell surface by pretending
+		// that the cell is shaped like a spherical cap. The ratio of the
+		// area of a spherical cap to the area of its projected disc turns out
+		// to be 2 / (1 + sqrt(1 - r*r)) where "r" is the radius of the disc.
+		// For example, when r=0 the ratio is 1, and when r=1 the ratio is 2.
+		// Here we set Pi*r*r == flat_area to find the equivalent disc.
+		return flatArea * 2 / (1 + sqrt(1 - min(M_1_PI * flatArea, 1.0)))
+	}
+	
+	/**
+		Return the area of this cell as accurately as possible. This method is more
+		expensive but it is accurate to 6 digits of precision even for leaf cells
+		(whose area is approximately 1e-18).
+	*/
+	public var exactArea: Double {
+		let v0 = getVertex(0)
+		let v1 = getVertex(1)
+		let v2 = getVertex(2)
+		let v3 = getVertex(3)
+		return S2.area(a: v0, b: v1, c: v2) + S2.area(a: v0, b: v2, c: v3)
+	}
+	
 	////////////////////////////////////////////////////////////////////////
 	// MARK: S2Region
 	////////////////////////////////////////////////////////////////////////
@@ -236,7 +287,7 @@ public struct S2Cell: S2Region, Equatable {
 			let i = S2Projections.getUAxis(face: Int(face)).z == 0 ? (u < 0 ? 1 : 0) : (u > 0 ? 1 : 0)
 			let j = S2Projections.getVAxis(face: Int(face)).z == 0 ? (v < 0 ? 1 : 0) : (v > 0 ? 1 : 0)
 			
-			var lat = R1Interval.fromPointPair(p1: getLatitude(i: i, j: j), p2: getLatitude(i: 1 - i, j: 1 - j))
+			var lat = R1Interval(p1: getLatitude(i: i, j: j), p2: getLatitude(i: 1 - i, j: 1 - j))
 			lat = lat.expanded(radius: S2Cell.maxError).intersection(with: S2LatLngRect.fullLat)
 			if (lat.lo == -M_PI_2 || lat.hi == M_PI_2) {
 				return S2LatLngRect(lat: lat, lng: S1Interval.full)
@@ -264,11 +315,11 @@ public struct S2Cell: S2Region, Equatable {
 	}
 	
 	public func contains(cell: S2Cell) -> Bool {
-		return false
+		return cellId.contains(other: cell.cellId)
 	}
 	
 	public func mayIntersect(cell: S2Cell) -> Bool {
-		return false
+		return cellId.intersects(other: cell.cellId)
 	}
 	
 	// Return the latitude or longitude of the cell vertex given by (i,j),

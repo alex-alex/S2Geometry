@@ -26,8 +26,8 @@ public struct R1Interval: Equatable { //, Hashable {
 	public static let empty = R1Interval(lo: 1, hi: 0)
 	
 	/// Convenience method to construct an interval containing a single point.
-	public static func from(point p: Double) -> R1Interval {
-		return R1Interval(lo: p, hi: p)
+	public init(point p: Double) {
+		self.init(lo: p, hi: p)
 	}
 	
 	/**
@@ -35,11 +35,11 @@ public struct R1Interval: Equatable { //, Hashable {
 		given points. This is equivalent to starting with an empty interval and
 		calling AddPoint() twice, but it is more efficient.
 	*/
-	public static func fromPointPair(p1: Double, p2: Double) -> R1Interval {
+	public init(p1: Double, p2: Double) {
 		if p1 <= p2 {
-			return R1Interval(lo: p1, hi: p2)
+			self.init(lo: p1, hi: p2)
 		} else {
-			return R1Interval(lo: p2, hi: p1)
+			self.init(lo: p2, hi: p1)
 		}
 	}
 	
@@ -95,7 +95,7 @@ public struct R1Interval: Equatable { //, Hashable {
 	/// Expand the interval so that it contains the given point "p".
 	public func add(point p: Double) -> R1Interval {
 		if isEmpty {
-			return R1Interval.from(point: p)
+			return R1Interval(point: p)
 		} else if p < lo {
 			return R1Interval(lo: p, hi: hi)
 		} else if p > hi {

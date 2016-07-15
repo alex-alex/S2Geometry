@@ -20,6 +20,17 @@ public struct S2LatLng: Equatable {
 	public let lat: S1Angle
 	public let lng: S1Angle
 	
+	public static func latitude(point p: S2Point) -> S1Angle {
+		// We use atan2 rather than asin because the input vector is not necessarily
+		// unit length, and atan2 is much more accurate than asin near the poles.
+		return S1Angle(radians: atan2(p.z, sqrt(p.x * p.x + p.y * p.y)))
+	}
+	
+	public static func longitude(point p: S2Point) -> S1Angle {
+		// Note that atan2(0, 0) is defined to be zero.
+		return S1Angle(radians: atan2(p.y, p.x))
+	}
+	
 	public init(lat: S1Angle = S1Angle(), lng: S1Angle = S1Angle()) {
 		self.lat = lat
 		self.lng = lng
@@ -41,7 +52,7 @@ public struct S2LatLng: Equatable {
 		// compute the latitude because the input vector is not necessarily unit
 		// length, and atan2 is much more accurate than asin near the poles.
 		// Note that atan2(0, 0) is defined to be zero.
-		self.init(latRadians: atan2(p.z, sqrt(p.x * p.x + p.y * p.y)), lngRadians: atan2(p.y, p.x))
+		self.init(lat: S2LatLng.latitude(point: p), lng: S2LatLng.longitude(point: p))
 	}
 	
 	/**
