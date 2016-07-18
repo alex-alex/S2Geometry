@@ -232,7 +232,10 @@ public struct XYZPruner {
 		// it will be very small but for some large arcs (ie. from (1N,90W) to
 		// (1N,90E) the path can be wildly deformed.  I did a bunch of
 		// experiments with geodesics to get safe bounds for the deformation.
-		let approxArcLen = abs(from.x - to.x) + abs(from.y - to.y) + abs(from.z - to.z)
+		let absX = abs(from.x - to.x)
+		let absY = abs(from.y - to.y)
+		let absZ = abs(from.z - to.z)
+		let approxArcLen = absX + absY + absZ
 		if approxArcLen < 0.025 { // less than 2 degrees
 			maxDeformation = max(maxDeformation, approxArcLen * 0.0025)
 		} else if approxArcLen < 1.0 { // less than 90 degrees
