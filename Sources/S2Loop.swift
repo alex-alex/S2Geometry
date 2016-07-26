@@ -139,7 +139,7 @@ public struct S2Loop: S2Region, Comparable {
 		For convenience, we make two entire copies of the vertex list available:
 		vertex(n..2*n-1) is mapped to vertex(0..n-1), where n == numVertices().
 	*/
-	public func vertex(_ i: Int) -> S2Point {
+	public func vertex(i: Int) -> S2Point {
 		return vertices[i >= vertices.count ? i - vertices.count : i]
 	}
 	
@@ -180,8 +180,8 @@ public struct S2Loop: S2Region, Comparable {
 	public mutating func invert() {
 		let last = numVertices - 1
 		
-		for i in (0 ... (last - 1) / 2).reversed() {
-//		for (int i = (last - 1) / 2; i >= 0; --i) {
+//		for i in (0 ... (last - 1) / 2).reversed() {
+		for (var i = (last - 1) / 2; i >= 0; i -= 1) {
 			let t = vertices[i]
 			vertices[i] = vertices[last - i];
 			vertices[last - i] = t;
@@ -226,17 +226,17 @@ public struct S2Loop: S2Region, Comparable {
 
 		var origin = vertex(0)
 		let axis = (origin.largestAbsComponent + 1) % 3
-		let slightlyDisplaced = origin.get(axis: axis) + M_E * 1e-10
+		let slightlyDisplaced = origin.get(axis) + M_E * 1e-10
 		origin = S2Point(x: (axis == 0) ? slightlyDisplaced : origin.x, y: (axis == 1) ? slightlyDisplaced : origin.y, z: (axis == 2) ? slightlyDisplaced : origin.z)
 		origin = S2Point.normalize(point: origin)
 
 		var areaSum: Double = 0
 		var centroidSum = S2Point()
 		for i in 1 ... numVertices {
-			areaSum += S2.signedArea(a: origin, b: vertex(i - 1), c: vertex(i));
+			areaSum += S2.signedArea(origin, b: vertex(i - 1), c: vertex(i));
 			if doCentroid {
 				// The true centroid is already premultiplied by the triangle area.
-				let trueCentroid = S2.trueCentroid(a: origin, b: vertex(i - 1), c: vertex(i))
+				let trueCentroid = S2.trueCentroid(origin, b: vertex(i - 1), c: vertex(i))
 				centroidSum = centroidSum + trueCentroid
 			}
 		}
@@ -277,7 +277,7 @@ public struct S2Loop: S2Region, Comparable {
 		of an odd number of loops. The return value is between 0 and 4*Pi.
 	*/
 	public var area: Double {
-		return getAreaCentroid(doCentroid: false).area
+		return getAreaCentroid(false).area
 	}
 	
 	/**
@@ -320,7 +320,7 @@ public struct S2Loop: S2Region, Comparable {
 		// union is the entire sphere, i.e. two loops that contains each other's
 		// boundaries but not each other's interiors.
 		
-		if (!bound.contains(other: b.rectBound)) { return false }
+		if (!bound.contains(b.rectBound)) { return false }
 		
 		// Unless there are shared vertices, we need to check whether A contains a
 		// vertex of B. Since shared vertices are rare, it is more efficient to do
@@ -329,7 +329,7 @@ public struct S2Loop: S2Region, Comparable {
 		
 		// Now check whether there are any edge crossings, and also check the loop
 		// relationship at any shared vertices.
-		if (checkEdgeCrossings(b: b, relation: WedgeContains.self) <= 0) { return false }
+		if (checkEdgeCrossings(b, relation: WedgeContains.self) <= 0) { return false }
 		
 		// At this point we know that the boundaries of A and B do not intersect,
 		// and that A contains a vertex of B. However we still need to check for
@@ -361,7 +361,7 @@ public struct S2Loop: S2Region, Comparable {
 		
 		// Now check whether there are any edge crossings, and also check the loop
 		// relationship at any shared vertices.
-		if (checkEdgeCrossings(b: b, relation: WedgeIntersects.self) < 0) { return true }
+		if (checkEdgeCrossings(b, relation: WedgeIntersects.self) < 0) { return true }
 		
 		// We know that A does not contain a vertex of B, and that there are no edge
 		// crossings. Therefore the only way that A can intersect B is if B
@@ -369,7 +369,7 @@ public struct S2Loop: S2Region, Comparable {
 		// arbitrary non-shared vertex of A. Note that this check is cheap because
 		// of the bounding box precondition and the fact that we normalized the
 		// arguments so that A's longitude span is at least as long as B's.
-		if b.rectBound.contains(other: bound) {
+		if b.rectBound.contains(bound) {
 			if b.contains(point: vertex(0)) && b.findVertex(point: vertex(0)) < 0 { return true }
 		}
 		
@@ -381,7 +381,7 @@ public struct S2Loop: S2Region, Comparable {
 		contains() is much cheaper since it does not need to check whether the boundaries of the two loops cross.
 	*/
 	public func containsNested(b: S2Loop) -> Bool {
-		if !bound.contains(other: b.rectBound) { return false }
+		if !bound.contains(b.rectBound) { return false }
 		
 		// We are given that A and B do not share any edges, and that either one
 		// loop contains the other or they do not intersect.
@@ -392,7 +392,7 @@ public struct S2Loop: S2Region, Comparable {
 		}
 		// Check whether the edge order around b->vertex(1) is compatible with
 		// A containin B.
-		return WedgeContains.test(a0: vertex(m - 1), ab1: vertex(m), a2: vertex(m + 1), b0: b.vertex(0), b2: b.vertex(2)) > 0
+		return WedgeContains.test(vertex(m - 1), ab1: vertex(m), a2: vertex(m + 1), b0: b.vertex(0), b2: b.vertex(2)) > 0
 	}
 	
 	/**
@@ -410,7 +410,7 @@ public struct S2Loop: S2Region, Comparable {
 		// relationship at any shared vertices. Note that unlike Contains() or
 		// Intersects(), we can't do a point containment test as a shortcut because
 		// we need to detect whether there are any edge crossings.
-		let result = checkEdgeCrossings(b: b, relation: WedgeContainsOrCrosses.self)
+		let result = checkEdgeCrossings(b, relation: WedgeContainsOrCrosses.self)
 		
 		// If there was an edge crossing or a shared vertex, we know the result
 		// already. (This is true even if the result is 1, but since we don't
@@ -423,7 +423,7 @@ public struct S2Loop: S2Region, Comparable {
 		// either A contains B, or there are no shared vertices (due to the check
 		// above). So now we just need to distinguish the case where A contains B
 		// from the case where B contains A or the two loops are disjoint.
-		if !bound.contains(other: b.rectBound) { return 0 }
+		if !bound.contains(b.rectBound) { return 0 }
 		if !contains(point: b.vertex(0)) && findVertex(point: b.vertex(0)) < 0 { return 0 }
 		
 		return 1
@@ -442,7 +442,7 @@ public struct S2Loop: S2Region, Comparable {
 		var iThis = firstLogicalVertex
 		var iOther = b.firstLogicalVertex
 		for _ in 0 ..< maxVertices {
-			if !S2.approxEquals(a: vertex(iThis), b: b.vertex(iOther), maxError: maxError) { return false }
+			if !S2.approxEquals(vertex(iThis), b: b.vertex(iOther), maxError: maxError) { return false }
 			iThis += 1
 			iOther += 1
 		}
@@ -467,8 +467,8 @@ public struct S2Loop: S2Region, Comparable {
 			}
 		} else {
 			var previousIndex = -2
-			var it = getEdgeIterator(expectedQueries: numVertices)
-			it.getCandidates(a: origin, b: p)
+			var it = getEdgeIterator(numVertices)
+			it.getCandidates(origin, b: p)
 			for ai in it {
 				if previousIndex != ai - 1 {
 					crosser.restartAt(point: vertices[ai])
@@ -493,7 +493,7 @@ public struct S2Loop: S2Region, Comparable {
 		// angle of PI radians. This is an upper bound on the angle.
 		var minDistance = S1Angle(radians: M_PI)
 		for i in 0 ..< numVertices {
-			minDistance = min(minDistance, S2EdgeUtil.getDistance(x: normalized, a: vertex(i), b: vertex(i + 1)))
+			minDistance = min(minDistance, S2EdgeUtil.getDistance(normalized, a: vertex(i), b: vertex(i + 1)))
 		}
 		return minDistance
 	}
@@ -506,7 +506,7 @@ public struct S2Loop: S2Region, Comparable {
 		edge lookups.
 	*/
 	private func getEdgeIterator(expectedQueries: Int) -> S2EdgeIndex.DataEdgeIterator {
-		index.predictAdditionalCalls(n: expectedQueries)
+		index.predictAdditionalCalls(expectedQueries)
 		return S2EdgeIndex.DataEdgeIterator(edgeIndex: index)
 	}
 	
@@ -528,7 +528,8 @@ public struct S2Loop: S2Region, Comparable {
 		// Loops are not allowed to have any duplicate vertices.
 		var vmap: Set<S2Point> = []
 		for i in 0 ..< numVertices {
-			if !vmap.insert(vertex(i)).inserted {
+            vmap.insert(vertex(i))
+			if !vmap.contains(vertex(i)) {
 //				log.info("Duplicate vertices: " + previousVertexIndex + " and " + i);
 				return false
 			}
@@ -536,12 +537,12 @@ public struct S2Loop: S2Region, Comparable {
 		
 		// Non-adjacent edges are not allowed to intersect.
 		var crosses = false
-		var it = getEdgeIterator(expectedQueries: numVertices)
+		var it = getEdgeIterator(numVertices)
 		for a1 in 0 ..< numVertices {
 			let a2 = (a1 + 1) % numVertices
 			var crosser = EdgeCrosser(a: vertex(a1), b: vertex(a2), c: vertex(0))
 			var previousIndex = -2
-			it.getCandidates(a: vertex(a1), b: vertex(a2))
+			it.getCandidates(vertex(a1), b: vertex(a2))
 			for b1 in it {
 				let b2 = (b1 + 1) % numVertices
 				// If either 'a' index equals either 'b' index, then these two edges
@@ -559,10 +560,10 @@ public struct S2Loop: S2Region, Comparable {
 					// to determine edge intersections. The workaround is to ignore
 					// intersections between edge pairs where all four points are
 					// nearly colinear.
-					let abc = S2.angle(a: vertex(a1), b: vertex(a2), c: vertex(b1))
-					let abcNearlyLinear = S2.approxEquals(a: abc, b: 0, maxError: S2Loop.maxIntersectionError) || S2.approxEquals(a: abc, b: M_PI, maxError: S2Loop.maxIntersectionError)
-					let abd = S2.angle(a: vertex(a1), b: vertex(a2), c: vertex(b2));
-					let abdNearlyLinear = S2.approxEquals(a: abd, b: 0, maxError: S2Loop.maxIntersectionError) || S2.approxEquals(a: abd, b: M_PI, maxError: S2Loop.maxIntersectionError)
+					let abc = S2.angle(vertex(a1), b: vertex(a2), c: vertex(b1))
+					let abcNearlyLinear = S2.approxEquals(abc, b: 0, maxError: S2Loop.maxIntersectionError) || S2.approxEquals(abc, b: M_PI, maxError: S2Loop.maxIntersectionError)
+					let abd = S2.angle(vertex(a1), b: vertex(a2), c: vertex(b2));
+					let abdNearlyLinear = S2.approxEquals(abd, b: 0, maxError: S2Loop.maxIntersectionError) || S2.approxEquals(abd, b: M_PI, maxError: S2Loop.maxIntersectionError)
 					if abcNearlyLinear && abdNearlyLinear { continue }
 					
 					if previousIndex != b1 {
@@ -609,7 +610,7 @@ public struct S2Loop: S2Region, Comparable {
 		// The test below is written so that B is inside if C=R but not if A=R.
 		
 		originInside = false // Initialize before calling Contains().
-		let v1Inside = S2.orderedCCW(a: vertex(1).ortho, b: vertex(0), c: vertex(2), o: vertex(1))
+		let v1Inside = S2.orderedCCW(vertex(1).ortho, b: vertex(0), c: vertex(2), o: vertex(1))
 		if v1Inside != contains(point: vertex(1)) {
 			originInside = true
 		}
@@ -664,14 +665,14 @@ public struct S2Loop: S2Region, Comparable {
 		intersections and no shared vertices.
 	*/
 	private func checkEdgeCrossings(b: S2Loop, relation: WedgeRelation.Type) -> Int {
-		var it = getEdgeIterator(expectedQueries: b.numVertices)
+		var it = getEdgeIterator(b.numVertices)
 		var result = 1
 		// since 'this' usually has many more vertices than 'b', use the index on
 		// 'this' and loop over 'b'
 		for j in 0 ..< b.numVertices {
 			var crosser = EdgeCrosser(a: b.vertex(j), b: b.vertex(j + 1), c: vertex(0))
 			var previousIndex = -2
-			it.getCandidates(a: b.vertex(j), b: b.vertex(j + 1))
+			it.getCandidates(b.vertex(j), b: b.vertex(j + 1))
 			for i in it {
 				if previousIndex != i - 1 {
 					crosser.restartAt(point: vertex(i))
@@ -681,7 +682,7 @@ public struct S2Loop: S2Region, Comparable {
 				if crossing < 0 { continue }
 				if crossing > 0 { return -1 } // There is a proper edge crossing.
 				if vertex(i + 1) == (b.vertex(j + 1)) {
-					result = min(result, relation.test(a0: vertex(i), ab1: vertex(i + 1), a2: vertex(i + 2), b0: b.vertex(j), b2: b.vertex(j + 2)))
+					result = min(result, relation.test(vertex(i), ab1: vertex(i + 1), a2: vertex(i + 2), b0: b.vertex(j), b2: b.vertex(j + 2)))
 					if result < 0 { return result }
 				}
 			}
@@ -714,7 +715,7 @@ public struct S2Loop: S2Region, Comparable {
 		// the fact than an S2Cell is convex.
 		
 		let cellBound = cell.rectBound
-		if !bound.contains(other: cellBound) {
+		if !bound.contains(cellBound) {
 			return false
 		}
 		let cellLoop = S2Loop(cell: cell, bound: cellBound)

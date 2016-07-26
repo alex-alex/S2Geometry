@@ -41,7 +41,7 @@ public struct EdgeCrosser {
 	/// Call this function when your chain 'jumps' to a new place.
 	public mutating func restartAt(point c: S2Point) {
 		self.c = c
-		acb = -S2.robustCCW(a: a, b: b, c: c, aCrossB: aCrossB)
+		acb = -S2.robustCCW(a, b: b, c: c, aCrossB: aCrossB)
 	}
 	
 	/**
@@ -62,7 +62,7 @@ public struct EdgeCrosser {
 		
 		// Recall that robustCCW is invariant with respect to rotating its
 		// arguments, i.e. ABC has the same orientation as BDA.
-		let bda = S2.robustCCW(a: a, b: b, c: d, aCrossB: aCrossB)
+		let bda = S2.robustCCW(a, b: b, c: d, aCrossB: aCrossB)
 		var result: Int
 		
 		if (bda == -acb && bda != 0) {
@@ -96,7 +96,7 @@ public struct EdgeCrosser {
 		if crossing < 0 { return false }
 		if crossing > 0 { return true }
 		
-		return S2EdgeUtil.vertexCrossing(a: a, b: b, c: c2, d: d)
+		return S2EdgeUtil.vertexCrossing(a, b: b, c: c2, d: d)
 	}
 	
 	/// This function handles the "slow path" of robustCrossing().
@@ -104,9 +104,9 @@ public struct EdgeCrosser {
 		// ACB and BDA have the appropriate orientations, so now we check the
 		// triangles CBD and DAC.
 		let cCrossD = c.crossProd(d)
-		let cbd = -S2.robustCCW(a: c, b: d, c: b, aCrossB: cCrossD)
+		let cbd = -S2.robustCCW(c, b: d, c: b, aCrossB: cCrossD)
 		if cbd != acb { return -1 }
-		let dac = S2.robustCCW(a: c, b: d, c: a, aCrossB: cCrossD)
+		let dac = S2.robustCCW(c, b: d, c: a, aCrossB: cCrossD)
 		return dac == acb ? 1 : -1
 	}
 }
@@ -151,7 +151,7 @@ public struct RectBounder {
 			// "dir" in this plane that also passes through the equator. We use
 			// RobustCrossProd to ensure that the edge normal is accurate even
 			// when the two points are very close together.
-			let aCrossB = S2.robustCrossProd(a: a, b: b)
+			let aCrossB = S2.robustCrossProd(a, b: b)
 			let dir = aCrossB.crossProd(S2Point(x: 0, y: 0, z: 1))
 			let da = dir.dotProd(a)
 			let db = dir.dotProd(b)
@@ -311,7 +311,7 @@ public struct LongitudePruner {
 	*/
 	public mutating func intersects(with v1: S2Point) -> Bool {
 		let lng1 = S2LatLng.longitude(point: v1).radians
-		let result = interval.intersects(with: S1Interval.fromPointPair(p1: lng0, p2: lng1))
+		let result = interval.intersects(with: S1Interval.fromPointPair(lng0, p2: lng1))
 		self.lng0 = lng1
 		return result
 	}
@@ -341,7 +341,7 @@ public struct WedgeContains: WedgeRelation {
 		// For A to contain B (where each loop interior is defined to be its left
 		// side), the CCW edge order around ab1 must be a2 b2 b0 a0. We split
 		// this test into two parts that test three vertices each.
-		return S2.orderedCCW(a: a2, b: b2, c: b0, o: ab1) && S2.orderedCCW(a: b0, b: a0, c: a2, o: ab1) ? 1 : 0
+		return S2.orderedCCW(a2, b: b2, c: b0, o: ab1) && S2.orderedCCW(b0, b: a0, c: a2, o: ab1) ? 1 : 0
 	}
 }
 
@@ -360,7 +360,7 @@ public struct WedgeIntersects: WedgeRelation {
 		// Note that it's important to write these conditions as negatives
 		// (!OrderedCCW(a,b,c,o) rather than Ordered(c,b,a,o)) to get correct
 		// results when two vertices are the same.
-		return S2.orderedCCW(a: a0, b: b2, c: b0, o: ab1) && S2.orderedCCW(a: b0, b: a2, c: a0, o: ab1) ? 0 : -1
+		return S2.orderedCCW(a0, b: b2, c: b0, o: ab1) && S2.orderedCCW(b0, b: a2, c: a0, o: ab1) ? 0 : -1
 	}
 }
 
@@ -375,12 +375,12 @@ public struct WedgeContainsOrIntersects: WedgeRelation {
 		// distinguish cases (1) [A contains B], (3) [A and B are disjoint],
 		// and (2,4,5,6) [A intersects but does not contain B].
 		
-		if S2.orderedCCW(a: a0, b: a2, c: b2, o: ab1) {
+		if S2.orderedCCW(a0, b: a2, c: b2, o: ab1) {
 			// We are in case 1, 5, or 6, or case 2 if a2 == b2.
-			return S2.orderedCCW(a: b2, b: b0, c: a0, o: ab1) ? 1 : -1 // Case 1 vs. 2,5,6.
+			return S2.orderedCCW(b2, b: b0, c: a0, o: ab1) ? 1 : -1 // Case 1 vs. 2,5,6.
 		}
 		// We are in cases 2, 3, or 4.
-		if !S2.orderedCCW(a: a2, b: b0, c: b2, o: ab1) {
+		if !S2.orderedCCW(a2, b: b0, c: b2, o: ab1) {
 			return 0 // Case 3.
 		}
 		
@@ -421,10 +421,10 @@ public struct WedgeContainsOrCrosses: WedgeRelation {
 		// particular note that if orderedCCW(a,b,c,o) returns true, it may be
 		// possible that orderedCCW(c,b,a,o) is also true (if a == b or b == c).
 		
-		if S2.orderedCCW(a: a0, b: a2, c: b2, o: ab1) {
+		if S2.orderedCCW(a0, b: a2, c: b2, o: ab1) {
 			// The cases with this vertex ordering are 1, 5, and 6,
 			// although case 2 is also possible if a2 == b2.
-			if S2.orderedCCW(a: b2, b: b0, c: a0, o: ab1) {
+			if S2.orderedCCW(b2, b: b0, c: a0, o: ab1) {
 				return 1 // Case 1 (A contains B)
 			}
 			
@@ -432,7 +432,7 @@ public struct WedgeContainsOrCrosses: WedgeRelation {
 			return a2 == b2 ? 0 : -1 // Case 2 vs. 5,6.
 		}
 		// We are in case 2, 3, or 4.
-		return S2.orderedCCW(a: a0, b: b0, c: a2, o: ab1) ? 0 : -1 // Case 2,3 vs. 4.
+		return S2.orderedCCW(a0, b: b0, c: a2, o: ab1) ? 0 : -1 // Case 2,3 vs. 4.
 	}
 }
 
@@ -509,8 +509,8 @@ public struct S2EdgeUtil {
 		// result changes according to the sign of the permutation. Thus ACB and
 		// ABC are oppositely oriented, while BDA and ABD are the same.
 		let aCrossB = a.crossProd(b)
-		let acb = -S2.robustCCW(a: a, b: b, c: c, aCrossB: aCrossB)
-		let bda = S2.robustCCW(a: a, b: b, c: d, aCrossB: aCrossB)
+		let acb = -S2.robustCCW(a, b: b, c: c, aCrossB: aCrossB)
+		let bda = S2.robustCCW(a, b: b, c: d, aCrossB: aCrossB)
 		
 		// If any two vertices are the same, the result is degenerate.
 		if bda & acb == 0 { return 0 }
@@ -522,10 +522,10 @@ public struct S2EdgeUtil {
 		// Otherwise we compute the orientations of CBD and DAC, and check whether
 		// their orientations are compatible with the other two triangles.
 		let cCrossD = c.crossProd(d)
-		let cbd = -S2.robustCCW(a: c, b: d, c: b, aCrossB: cCrossD)
+		let cbd = -S2.robustCCW(c, b: d, c: b, aCrossB: cCrossD)
 		if cbd != acb { return -1 }
 		
-		let dac = S2.robustCCW(a: c, b: d, c: a, aCrossB: cCrossD)
+		let dac = S2.robustCCW(c, b: d, c: a, aCrossB: cCrossD)
 		return dac == acb ? 1 : -1
 	}
 	
@@ -562,16 +562,16 @@ public struct S2EdgeUtil {
 		// if orderedCCW() indicates that the edge AB is further CCW around the
 		// shared vertex than the edge CD.
 		if a == d {
-			return S2.orderedCCW(a: a.ortho, b: c, c: b, o: a);
+			return S2.orderedCCW(a.ortho, b: c, c: b, o: a);
 		}
 		if b == c {
-			return S2.orderedCCW(a: b.ortho, b: d, c: a, o: b);
+			return S2.orderedCCW(b.ortho, b: d, c: a, o: b);
 		}
 		if a == c {
-			return S2.orderedCCW(a: a.ortho, b: d, c: b, o: a);
+			return S2.orderedCCW(a.ortho, b: d, c: b, o: a);
 		}
 		if b == d {
-			return S2.orderedCCW(a: b.ortho, b: c, c: a, o: b);
+			return S2.orderedCCW(b.ortho, b: c, c: a, o: b);
 		}
 		
 		// assert (false);
@@ -586,10 +586,10 @@ public struct S2EdgeUtil {
 		counting edge crossings.
 	*/
 	public static func edgeOrVertexCrossing(a: S2Point, b: S2Point, c: S2Point, d: S2Point) -> Bool {
-		let crossing = robustCrossing(a: a, b: b, c: c, d: d)
+		let crossing = robustCrossing(a, b: b, c: c, d: d)
 		if crossing < 0 { return false }
 		if crossing > 0 { return true }
-		return vertexCrossing(a: a, b: b, c: c, d: d)
+		return vertexCrossing(a, b: b, c: c, d: d)
 	}
 	
 	public struct CloserResult {
@@ -625,13 +625,13 @@ public struct S2EdgeUtil {
 		"DEFAULT_INTERSECTION_TOLERANCE" below for details.
 	*/
 	public static func getIntersection(a0: S2Point, a1: S2Point, b0: S2Point, b1: S2Point) -> S2Point {
-		precondition(robustCrossing(a: a0, b: a1, c: b0, d: b1) > 0, "Input edges a0a1 and b0b1 muct have a true robustCrossing.")
+		precondition(robustCrossing(a0, b: a1, c: b0, d: b1) > 0, "Input edges a0a1 and b0b1 muct have a true robustCrossing.")
 		
 		// We use robustCrossProd() to get accurate results even when two endpoints
 		// are close together, or when the two line segments are nearly parallel.
-		let aNorm = S2Point.normalize(point: S2.robustCrossProd(a: a0, b: a1))
-		let bNorm = S2Point.normalize(point: S2.robustCrossProd(a: b0, b: b1))
-		var x = S2Point.normalize(point: S2.robustCrossProd(a: aNorm, b: bNorm))
+		let aNorm = S2Point.normalize(point: S2.robustCrossProd(a0, b: a1))
+		let bNorm = S2Point.normalize(point: S2.robustCrossProd(b0, b: b1))
+		var x = S2Point.normalize(point: S2.robustCrossProd(aNorm, b: bNorm))
 		
 		// Make sure the intersection point is on the correct side of the sphere.
 		// Since all vertices are unit length, and edges are less than 180 degrees,
@@ -651,24 +651,24 @@ public struct S2EdgeUtil {
 		// (a0,a1) but outside the range covered by (a0,a1). In this case we do
 		// additional clipping to ensure that it does.
 		
-		if S2.orderedCCW(a: a0, b: x, c: a1, o: aNorm) && S2.orderedCCW(a: b0, b: x, c: b1, o: bNorm) {
+		if S2.orderedCCW(a0, b: x, c: a1, o: aNorm) && S2.orderedCCW(b0, b: x, c: b1, o: bNorm) {
 			return x
 		}
 		
 		// Find the acceptable endpoint closest to x and return it. An endpoint is
 		// acceptable if it lies between the endpoints of the other line segment.
 		var r = CloserResult(dmin2: 10, vmin: x)
-		if S2.orderedCCW(a: b0, b: a0, c: b1, o: bNorm) {
-			r.replaceIfCloser(x: x, y: a0)
+		if S2.orderedCCW(b0, b: a0, c: b1, o: bNorm) {
+			r.replaceIfCloser(x, y: a0)
 		}
-		if S2.orderedCCW(a: b0, b: a1, c: b1, o: bNorm) {
-			r.replaceIfCloser(x: x, y: a1)
+		if S2.orderedCCW(b0, b: a1, c: b1, o: bNorm) {
+			r.replaceIfCloser(x, y: a1)
 		}
-		if S2.orderedCCW(a: a0, b: b0, c: a1, o: aNorm) {
-			r.replaceIfCloser(x: x, y: b0)
+		if S2.orderedCCW(a0, b: b0, c: a1, o: aNorm) {
+			r.replaceIfCloser(x, y: b0)
 		}
-		if S2.orderedCCW(a: a0, b: b1, c: a1, o: aNorm) {
-			r.replaceIfCloser(x: x, y: b1)
+		if S2.orderedCCW(a0, b: b1, c: a1, o: aNorm) {
+			r.replaceIfCloser(x, y: b1)
 		}
 		return r.vmin
 	}
@@ -693,7 +693,7 @@ public struct S2EdgeUtil {
 		IllegalArgumentException if this is not the case.
 	*/
 	public static func getDistance(x: S2Point, a: S2Point, b: S2Point) -> S1Angle {
-		return getDistance(x: x, a: a, b: b, aCrossB: S2.robustCrossProd(a: a, b: b))
+		return getDistance(x, a: a, b: b, aCrossB: S2.robustCrossProd(a, b: b))
 	}
 	
 	/**
@@ -713,7 +713,7 @@ public struct S2EdgeUtil {
 		// these two cases is the great circle passing through (A x B) and the
 		// midpoint of AB.
 		
-		if S2.simpleCCW(a: aCrossB, b: a, c: x) && S2.simpleCCW(a: x, b: b, c: aCrossB) {
+		if S2.simpleCCW(aCrossB, b: a, c: x) && S2.simpleCCW(x, b: b, c: aCrossB) {
 			// The closest point to X lies on the segment AB. We compute the distance
 			// to the corresponding great circle. The result is accurate for small
 			// distances but not necessarily for large distances (approaching Pi/2).
@@ -740,12 +740,12 @@ public struct S2EdgeUtil {
 		precondition(S2.isUnitLength(point: a))
 		precondition(S2.isUnitLength(point: b))
 		
-		let crossProd = S2.robustCrossProd(a: a, b: b)
+		let crossProd = S2.robustCrossProd(a, b: b)
 		// Find the closest point to X along the great circle through AB.
 		let p = (x - (crossProd * (x.dotProd(crossProd) / crossProd.norm2)))
 		
 		// If p is on the edge AB, then it's the closest point.
-		if (S2.simpleCCW(a: crossProd, b: a, c: p) && S2.simpleCCW(a: p, b: b, c: crossProd)) {
+		if (S2.simpleCCW(crossProd, b: a, c: p) && S2.simpleCCW(p, b: b, c: crossProd)) {
 			return S2Point.normalize(point: p)
 		}
 		// Otherwise, the closest point is either A or B.

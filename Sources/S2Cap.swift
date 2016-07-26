@@ -138,7 +138,7 @@ public struct S2Cap: S2Region {
 	*/
 	public func interiorIntersects(other: S2Cap) -> Bool {
 		// Interior(X) intersects Y if and only if Complement(Interior(X)) does not contain Y.
-		return !complement.contains(other: other)
+		return !complement.contains(other)
 	}
 	
 	/**
@@ -321,7 +321,7 @@ public struct S2Cap: S2Region {
 		// Otherwise, return true if the complement of the cap does not intersect
 		// the cell. (This test is slightly conservative, because technically we
 		// want Complement().InteriorIntersects() here.)
-		return !complement.intersects(cell: cell, vertices: vertices)
+		return !complement.intersects(cell, vertices: vertices)
 	}
 	
 	public func mayIntersect(cell: S2Cell) -> Bool {
@@ -333,7 +333,7 @@ public struct S2Cap: S2Region {
 				return true
 			}
 		}
-		return intersects(cell: cell, vertices: vertices)
+		return intersects(cell, vertices: vertices)
 	}
 	
 }

@@ -102,16 +102,16 @@ public struct S2Point: Comparable, Hashable {
 		value = UInt64.addWithOverflow(value, UInt64.multiplyWithOverflow(37, UInt64.addWithOverflow(value, abs(y)._bitPattern).0).0).0
 		value = UInt64.addWithOverflow(value, UInt64.multiplyWithOverflow(37, UInt64.addWithOverflow(value, abs(z)._bitPattern).0).0).0
 		value ^= (value >> 32)
-		return unsafeBitCast(value, to: Int.self)
+		return unsafeBitCast(value, Int.self)
 	}
 	
 	// ---
 	
-	public func dotProd(_ b: S2Point) -> Double {
+	public func dotProd(b: S2Point) -> Double {
 		return x * b.x + y * b.y + z * b.z
 	}
 	
-	public func crossProd(_ b: S2Point) -> S2Point {
+	public func crossProd(b: S2Point) -> S2Point {
 		return S2Point(x: y * b.z - z * b.y, y: z * b.x - x * b.z, z: x * b.y - y * b.x)
 	}
 	

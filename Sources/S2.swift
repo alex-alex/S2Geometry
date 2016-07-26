@@ -14,7 +14,7 @@
 
 internal extension Double {
 	var _bitPattern: UInt64 {
-		return unsafeBitCast(self, to: UInt64.self)
+		return unsafeBitCast(self, UInt64.self)
 	}
 }
 
@@ -45,7 +45,7 @@ public struct S2 {
 	*/
 	static func exp(v: Double) -> Int {
 		guard v != 0 else { return 0 }
-		let bits = unsafeBitCast(v, to: Int64.self)
+		let bits = unsafeBitCast(v, Int64.self)
 		return Int((exponentMask & bits) >> Int64(exponentShift)) - 1022
 	}
 	
@@ -146,7 +146,7 @@ public struct S2 {
 			always a valid level.
 		*/
 		public func getClosestLevel(value: Double) -> Int {
-			return getMinLevel(value: M_SQRT2 * value)
+			return getMinLevel(M_SQRT2 * value)
 		}
 		
 		/**
@@ -313,7 +313,7 @@ public struct S2 {
 			let dmin = s - max(sa, max(sb, sc))
 			if dmin < 1e-2 * s * s2 * s2 {
 				// This triangle is skinny enough to consider Girard's formula.
-				let area = girardArea(a: a, b: b, c: c)
+				let area = girardArea(a, b: b, c: c)
 				if dmin < s * (0.1 * area) {
 					return area
 				}
@@ -341,7 +341,7 @@ public struct S2 {
 	
 	/// Like Area(), but returns a positive value for counterclockwise triangles and a negative value otherwise.
 	public static func signedArea(a: S2Point, b: S2Point, c: S2Point) -> Double {
-		return area(a: a, b: b, c: c) * Double(robustCCW(a: a, b: b, c: c))
+		return area(a, b: b, c: c) * Double(robustCCW(a, b: b, c: c))
 	}
 	
 	// About centroids:
@@ -468,7 +468,7 @@ public struct S2 {
 		are undefined.
 	*/
 	public static func robustCCW(a: S2Point, b: S2Point, c: S2Point) -> Int {
-		return robustCCW(a: a, b: b, c: c, aCrossB: a.crossProd(b))
+		return robustCCW(a, b: b, c: c, aCrossB: a.crossProd(b))
 	}
 	
 	/**
@@ -505,7 +505,7 @@ public struct S2 {
 			return -1
 		}
 		
-		return expensiveCCW(a: a, b: b, c: c)
+		return expensiveCCW(a, b: b, c: c)
 	}
 	
 	/// A relatively expensive calculation invoked by RobustCCW() if the sign of the determinant is uncertain.
@@ -589,11 +589,11 @@ public struct S2 {
 		// checking whether the points are ordered CCW around the origin first in
 		// the Y-Z plane, then in the Z-X plane, and then in the X-Y plane.
 		
-		var ccw = planarOrderedCCW(a: R2Vector(x: a.y, y: a.z), b: R2Vector(x: b.y, y: b.z), c: R2Vector(x: c.y, y: c.z))
+		var ccw = planarOrderedCCW(R2Vector(x: a.y, y: a.z), b: R2Vector(x: b.y, y: b.z), c: R2Vector(x: c.y, y: c.z))
 		if (ccw == 0) {
-			ccw = planarOrderedCCW(a: R2Vector(x: a.z, y: a.x), b: R2Vector(x: b.z, y: b.x), c: R2Vector(x: c.z, y: c.x))
+			ccw = planarOrderedCCW(R2Vector(x: a.z, y: a.x), b: R2Vector(x: b.z, y: b.x), c: R2Vector(x: c.z, y: c.x))
 			if (ccw == 0) {
-				ccw = planarOrderedCCW(a: R2Vector(x: a.x, y: a.y), b: R2Vector(x: b.x, y: b.y), c: R2Vector(x: c.x, y: c.y))
+				ccw = planarOrderedCCW(R2Vector(x: a.x, y: a.y), b: R2Vector(x: b.x, y: b.y), c: R2Vector(x: c.x, y: c.y))
 				// assert (ccw != 0);
 			}
 		}
@@ -623,9 +623,9 @@ public struct S2 {
 	
 	public static func planarOrderedCCW(a: R2Vector, b: R2Vector, c: R2Vector) -> Int {
 		var sum = 0
-		sum += planarCCW(a: a, b: b)
-		sum += planarCCW(a: b, b: c)
-		sum += planarCCW(a: c, b: a)
+		sum += planarCCW(a, b: b)
+		sum += planarCCW(b, b: c)
+		sum += planarCCW(c, b: a)
 		if (sum > 0) {
 			return 1
 		}
@@ -653,13 +653,13 @@ public struct S2 {
 		// RobustCCW(x,y,z) == -RobustCCW(z,y,x) for all x,y,z.
 		
 		var sum = 0
-		if robustCCW(a: b, b: o, c: a) >= 0 {
+		if robustCCW(b, b: o, c: a) >= 0 {
 			sum += 1
 		}
-		if robustCCW(a: c, b: o, c: b) >= 0 {
+		if robustCCW(c, b: o, c: b) >= 0 {
 			sum += 1
 		}
-		if robustCCW(a: a, b: o, c: c) > 0 {
+		if robustCCW(a, b: o, c: c) > 0 {
 			sum += 1
 		}
 		return sum >= 2
@@ -691,7 +691,7 @@ public struct S2 {
 		// This is a bit less efficient because we compute all 3 cross products, but
 		// it ensures that turnAngle(a,b,c) == -turnAngle(c,b,a) for all a,b,c.
 		let outAngle = b.crossProd(a).angle(to: c.crossProd(b))
-		return (robustCCW(a: a, b: b, c: c) > 0) ? outAngle : -outAngle
+		return (robustCCW(a, b: b, c: c) > 0) ? outAngle : -outAngle
 	}
 	
 	/// Return true if two points are within the given distance of each other (mainly useful for testing).
