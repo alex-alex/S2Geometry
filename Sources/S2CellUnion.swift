@@ -8,17 +8,17 @@
 
 private func binarySearch<T: Comparable>(array: [T], key: T) -> Int {
 	var range: Range<Int> = 0 ..< array.count
-	while range.lowerBound < range.upperBound {
-		let midIndex = range.lowerBound + (range.upperBound - range.lowerBound) / 2
+	while range.startIndex < range.endIndex {
+		let midIndex = range.startIndex + (range.endIndex - range.startIndex) / 2
 		if array[midIndex] == key {
 			return midIndex
 		} else if array[midIndex] < key {
-			range = Range(uncheckedBounds: (lower: midIndex + 1, upper: range.upperBound))
+            range = midIndex + 1 ..< range.endIndex
 		} else {
-			range = Range(uncheckedBounds: (lower: range.lowerBound, upper: midIndex))
+            range = range.startIndex ..< midIndex
 		}
 	}
-	return -range.upperBound - 1
+	return -range.endIndex - 1
 }
 
 /**
@@ -115,7 +115,7 @@ public struct S2CellUnion: S2Region {
 			if (newLevel == level) {
 				output.append(id)
 			} else {
-				let end = id.childEnd(level: newLevel)
+				let end = id.childEnd(newLevel)
 				
 				var childId = id.childBegin()
 				while childId != end {
@@ -140,24 +140,23 @@ public struct S2CellUnion: S2Region {
 		- Returns: true if the normalize operation had any effect on the cell union,
 				   false if the union was already normalized
 	*/
-	@discardableResult
 	public mutating func normalize() -> Bool {
 		// Optimize the representation by looking for cases where all subcells
 		// of a parent cell are present.
 		var output: [S2CellId] = []
 		output.reserveCapacity(cellIds.count)
-		cellIds.sort()
+		cellIds.sortInPlace()
 		
 		for var id in cellIds {
 			var size = output.count
 			// Check whether this cell is contained by the previous cell.
-			if (!output.isEmpty && output[size - 1].contains(other: id)) {
+			if (!output.isEmpty && output[size - 1].contains(id)) {
 				continue
 			}
 		
 			// Discard any previous cells contained by this cell.
-			while (!output.isEmpty && id.contains(other: output[output.count - 1])) {
-				output.remove(at: output.count - 1)
+			while (!output.isEmpty && id.contains(output[output.count - 1])) {
+				output.removeAtIndex(output.count - 1)
 			}
 		
 			// Check whether the last 3 elements of "output" plus "id" can be
@@ -184,9 +183,9 @@ public struct S2CellUnion: S2Region {
 				}
 				
 				// Replace four children by their parent cell.
-				output.remove(at: size - 1)
-				output.remove(at: size - 2)
-				output.remove(at: size - 3)
+				output.removeAtIndex(size - 1)
+				output.removeAtIndex(size - 2)
+				output.removeAtIndex(size - 3)
 				id = id.parent
 			}
 			output.append(id)
@@ -214,7 +213,7 @@ public struct S2CellUnion: S2Region {
 		// the space-filling curve. So we simply find the pair of cell ids that
 		// surround the given cell id (using binary search). There is containment
 		// if and only if one of these two cell ids contains this cell.
-		var pos = binarySearch(array: cellIds, key: id)
+		var pos = binarySearch(cellIds, key: id)
 		if pos < 0 { pos = -pos - 1 }
 		if pos < cellIds.count && cellIds[pos].rangeMin <= id { return true }
 		return pos != 0 && cellIds[pos - 1].rangeMax >= id
@@ -227,7 +226,7 @@ public struct S2CellUnion: S2Region {
 	public func intersects(with id: S2CellId) -> Bool {
 		// This function requires that Normalize has been called first.
 		// This is an exact test; see the comments for Contains() above.
-		var pos = binarySearch(array: cellIds, key: id)
+		var pos = binarySearch(cellIds, key: id)
 		if pos < 0 { pos = -pos - 1 }
 		if pos < cellIds.count && cellIds[pos].rangeMin <= id.rangeMax { return true }
 		return pos != 0 && cellIds[pos - 1].rangeMax >= id.rangeMin
@@ -237,7 +236,7 @@ public struct S2CellUnion: S2Region {
 		// TODO(kirilll?): A divide-and-conquer or alternating-skip-search approach
 		// may be significantly faster in both the average and worst case.
 		for id in other.cellIds {
-			if !contains(id: id) { return false }
+			if !contains(id) { return false }
 		}
 		return true;
 	}
@@ -452,7 +451,7 @@ public struct S2CellUnion: S2Region {
 		the relative average area between objects.
 	*/
 	public var averageBasedArea: Double {
-		return S2Cell.averageArea(level: S2CellId.maxLevel) * Double(leafCellsCovered)
+		return S2Cell.averageArea(S2CellId.maxLevel) * Double(leafCellsCovered)
 	}
 
 	/**
@@ -489,7 +488,7 @@ public struct S2CellUnion: S2Region {
 		if cellIds.isEmpty { return S2Cap.empty }
 		var centroid = S2Point()
 		for id in cellIds {
-			let area = S2Cell.averageArea(level: id.level)
+			let area = S2Cell.averageArea(id.level)
 			centroid = centroid + (id.point * area)
 		}
 		if centroid == S2Point() {
@@ -518,7 +517,7 @@ public struct S2CellUnion: S2Region {
 	}
 	
 	public func contains(cell: S2Cell) -> Bool {
-		return contains(id: cell.cellId)
+		return contains(cell.cellId)
 	}
 	
 	public func mayIntersect(cell: S2Cell) -> Bool {

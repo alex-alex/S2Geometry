@@ -356,7 +356,7 @@ public struct S1Interval {
 		it is more numerically stable (it does not lose precision for very small
 		positive distances).
 	*/
-	public static func positiveDistance(_ a: Double, _ b: Double) -> Double {
+	public static func positiveDistance(a: Double, _ b: Double) -> Double {
 		let d = b - a
 		if d >= 0 { return d }
 		// We want to ensure that if b == Pi and a == (-Pi + eps),

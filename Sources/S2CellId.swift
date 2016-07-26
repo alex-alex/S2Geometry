@@ -79,7 +79,7 @@ public struct S2CellId: Comparable, Hashable {
 	private static var lookupLoaded = false
 	
 	private static var lookup: (pos: [Int], ij: [Int]) = {
-		return (pos: Array(repeating: 0, count: 1 << (2 * lookupBits + 2)), ij: Array(repeating: 0, count: 1 << (2 * lookupBits + 2)))
+        return (pos: Array(count: 1 << (2 * lookupBits + 2), repeatedValue: 0), ij: Array(count: 1 << (2 * lookupBits + 2), repeatedValue: 0))
 	}()
 	
 	private static var lookupPos: [Int] {
@@ -94,10 +94,10 @@ public struct S2CellId: Comparable, Hashable {
 	
 	private static func loadLookup() {
 		guard !lookupLoaded else { return }
-		S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: 0, pos: 0, orientation: 0)
-		S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: swapMask, pos: 0, orientation: swapMask)
-		S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: invertMask, pos: 0, orientation: invertMask)
-		S2CellId.initLookupCell(level: 0, i: 0, j: 0, origOrientation: swapMask | invertMask, pos: 0, orientation: swapMask | invertMask)
+		S2CellId.initLookupCell(0, i: 0, j: 0, origOrientation: 0, pos: 0, orientation: 0)
+		S2CellId.initLookupCell(0, i: 0, j: 0, origOrientation: swapMask, pos: 0, orientation: swapMask)
+		S2CellId.initLookupCell(0, i: 0, j: 0, origOrientation: invertMask, pos: 0, orientation: invertMask)
+		S2CellId.initLookupCell(0, i: 0, j: 0, origOrientation: swapMask | invertMask, pos: 0, orientation: swapMask | invertMask)
 		lookupLoaded = true
 	}
 	
@@ -130,15 +130,15 @@ public struct S2CellId: Comparable, Hashable {
 	*/
 	public init(face: Int, pos: Int64, level: Int) {
 		let id = Int64(face << S2CellId.posBits) + (pos | 1)
-		self = S2CellId(id: id).parent(level: level)
+		self = S2CellId(id: id).parent(level)
 	}
 	
 	/// Return the leaf cell containing the given point (a direction vector, not necessarily unit length).
 	public init(point p: S2Point) {
 		let face = S2Projections.xyzToFace(point: p)
-		let uv = S2Projections.validFaceXyzToUv(face: face, point: p)
-		let i = S2CellId.stToIJ(s: S2Projections.uvToST(u: uv.x))
-		let j = S2CellId.stToIJ(s: S2Projections.uvToST(u: uv.y))
+		let uv = S2Projections.validFaceXyzToUv(face, point: p)
+		let i = S2CellId.stToIJ(S2Projections.uvToST(uv.x))
+		let j = S2CellId.stToIJ(S2Projections.uvToST(uv.y))
 		self.init(face: face, i: i, j: j)
 	}
 	
@@ -178,12 +178,12 @@ public struct S2CellId: Comparable, Hashable {
 		var i = 0
 		var j = 0
 		var orientation: Int? = nil
-		let face = toFaceIJOrientation(i: &i, j: &j, orientation: &orientation)
+		let face = toFaceIJOrientation(&i, j: &j, orientation: &orientation)
 		// System.out.println("i= " + i.intValue() + " j = " + j.intValue())
 		let delta = isLeaf ? 1 : (((i ^ (Int(id) >> 2)) & 1) != 0) ? 2 : 0
 		let si = (i << 1) + delta - S2CellId.maxSize
 		let ti = (j << 1) + delta - S2CellId.maxSize
-		return S2CellId.faceSiTiToXYZ(face: face, si: si, ti: ti)
+		return S2CellId.faceSiTiToXYZ(face, si: si, ti: ti)
 	}
 
 	/// Return the S2LatLng corresponding to the center of the given cell.
@@ -364,7 +364,7 @@ public struct S2CellId: Comparable, Hashable {
 	*/
 	public func nextWrap() -> S2CellId {
 		let n = next()
-		if S2CellId.unsignedLongLessThan(lhs: n.id, rhs: S2CellId.wrapOffset) { return n }
+		if S2CellId.unsignedLongLessThan(n.id, rhs: S2CellId.wrapOffset) { return n }
 		return S2CellId(id: n.id - S2CellId.wrapOffset)
 	}
 	
@@ -380,11 +380,11 @@ public struct S2CellId: Comparable, Hashable {
 	}
 	
 	public static func begin(level: Int) -> S2CellId {
-		return S2CellId(face: 0, pos: 0, level: 0).childBegin(level: level)
+		return S2CellId(face: 0, pos: 0, level: 0).childBegin(level)
 	}
 	
 	public static func end(level: Int) -> S2CellId {
-		return S2CellId(face: 5, pos: 0, level: 0).childEnd(level: level)
+		return S2CellId(face: 5, pos: 0, level: 0).childEnd(level)
 	}
 	
 	/**
@@ -403,7 +403,7 @@ public struct S2CellId: Comparable, Hashable {
 		var i = 0
 		var j = 0
 		var orientation: Int? = nil
-		let face = toFaceIJOrientation(i: &i, j: &j, orientation: &orientation)
+		let face = toFaceIJOrientation(&i, j: &j, orientation: &orientation)
 		
 		// Determine the i- and j-offsets to the closest neighboring cell in each
 		// direction. This involves looking at the next bit of "i" and "j" to
@@ -429,14 +429,14 @@ public struct S2CellId: Comparable, Hashable {
 		
 		var output: [S2CellId] = []
 		
-		output.append(parent(level: level))
-		output.append(S2CellId(face: face, i: i + ioffset, j: j, sameFace: isame).parent(level: level))
-		output.append(S2CellId(face: face, i: i, j: j + joffset, sameFace: jsame).parent(level: level))
+		output.append(parent(level))
+		output.append(S2CellId(face: face, i: i + ioffset, j: j, sameFace: isame).parent(level))
+		output.append(S2CellId(face: face, i: i, j: j + joffset, sameFace: jsame).parent(level))
 		
 		// If i- and j- edge neighbors are *both* on a different face, then this
 		// vertex only has three neighbors (it is one of the 8 cube vertices).
 		if isame || jsame {
-			output.append(S2CellId(face: face, i: i + ioffset, j: j + joffset, sameFace: isame && jsame).parent(level: level))
+			output.append(S2CellId(face: face, i: i + ioffset, j: j + joffset, sameFace: isame && jsame).parent(level))
 		}
 		
 		return output
@@ -471,8 +471,9 @@ public struct S2CellId: Comparable, Hashable {
 			// letters [ijpo] denote bits of "i", "j", Hilbert curve position, and
 			// Hilbert curve orientation respectively.
 			
-			for k in (0 ..< 8).reversed() {
-				bits = S2CellId.getBits(n: &n, i: i, j: j, k: k, bits: bits)
+//			for k in (0 ..< 8).reversed() {
+            for (var k = 7; k >= 0; k -= 1) {
+				bits = S2CellId.getBits(&n, i: i, j: j, k: k, bits: bits)
 			}
 			
 			self.init(id: (((n[1] << 32) + n[0]) << 1) + 1)
@@ -496,14 +497,14 @@ public struct S2CellId: Comparable, Hashable {
 			
 			// Find the leaf cell coordinates on the adjacent face, and convert
 			// them to a cell id at the appropriate level.
-			let p = S2Projections.faceUvToXyz(face: face, u: s, v: t)
+			let p = S2Projections.faceUvToXyz(face, u: s, v: t)
 			face = S2Projections.xyzToFace(point: p)
-			let st = S2Projections.validFaceXyzToUv(face: face, point: p)
-			self.init(face: face, i: S2CellId.stToIJ(s: st.x), j: S2CellId.stToIJ(s: st.y))
+			let st = S2Projections.validFaceXyzToUv(face, point: p)
+			self.init(face: face, i: S2CellId.stToIJ(st.x), j: S2CellId.stToIJ(st.y))
 		}
 	}
 	
-	private static func getBits(n: inout [Int64], i: Int, j: Int, k: Int, bits: Int) -> Int {
+	private static func getBits(inout n: [Int64], i: Int, j: Int, k: Int, bits: Int) -> Int {
 		let mask = (1 << lookupBits) - 1
 		var bits = bits
 		bits += (((i >> (k * lookupBits)) & mask) << (lookupBits + 2))
@@ -521,7 +522,7 @@ public struct S2CellId: Comparable, Hashable {
 	* cell adjacent to the cell center. If "orientation" is non-NULL, also return
 	* the Hilbert curve orientation for the current cell.
 	*/
-	public func toFaceIJOrientation(i: inout Int, j: inout Int, orientation: inout Int?) -> Int {
+	public func toFaceIJOrientation(inout i: Int, inout j: Int, inout orientation: Int?) -> Int {
 		
 		// System.out.println("Entering toFaceIjorientation");
 		let face = self.face
@@ -537,8 +538,9 @@ public struct S2CellId: Comparable, Hashable {
 		//
 		// On the first iteration we need to be careful to clear out the bits
 		// representing the cube face.
-		for k in (0 ..< 8).reversed() {
-			bits = getBits1(i: &i, j: &j, k: k, bits: bits)
+//		for k in (0 ..< 8).reversed() {
+        for (var k = 8; k >= 0; k -= 1) {
+			bits = getBits1(&i, j: &j, k: k, bits: bits)
 			// System.out.println("pi = " + pi + " pj= " + pj + " bits = " + bits);
 		}
 		
@@ -561,7 +563,7 @@ public struct S2CellId: Comparable, Hashable {
 		return face
 	}
 	
-	private func getBits1(i: inout Int, j: inout Int, k: Int, bits: Int) -> Int {
+	private func getBits1(inout i: Int, inout j: Int, k: Int, bits: Int) -> Int {
 		let nbits = (k == 7) ? (S2CellId.maxLevel - 7 * S2CellId.lookupBits) : S2CellId.lookupBits
 		
 		var bits = bits
@@ -606,9 +608,9 @@ public struct S2CellId: Comparable, Hashable {
 	/// Convert (face, si, ti) coordinates (see s2.h) to a direction vector (not necessarily unit length).
 	private static func faceSiTiToXYZ(face: Int, si: Int, ti: Int) -> S2Point {
 		let kScale = 1.0 / Double(maxSize)
-		let u = S2Projections.stToUV(s: kScale * Double(si))
-		let v = S2Projections.stToUV(s: kScale * Double(ti))
-		return S2Projections.faceUvToXyz(face: face, u: u, v: v)
+		let u = S2Projections.stToUV(kScale * Double(si))
+		let v = S2Projections.stToUV(kScale * Double(ti))
+		return S2Projections.faceUvToXyz(face, u: u, v: v)
 	}
 	
 	/// Returns true if x1 < x2, when both values are treated as unsigned.
@@ -636,9 +638,9 @@ public struct S2CellId: Comparable, Hashable {
 			pos <<= 2
 			// Initialize each sub-cell recursively.
 			for subPos in 0 ..< 4 {
-				let ij = S2.posToIJ(orientation: orientation, position: subPos)
-				let orientationMask = S2.posToOrientation(position: subPos)
-				initLookupCell(level: level, i: i + (ij >> 1), j: j + (ij & 1), origOrientation: origOrientation, pos: pos + subPos, orientation: orientation ^ orientationMask)
+				let ij = S2.posToIJ(orientation, position: subPos)
+				let orientationMask = S2.posToOrientation(subPos)
+				initLookupCell(level, i: i + (ij >> 1), j: j + (ij & 1), origOrientation: origOrientation, pos: pos + subPos, orientation: orientation ^ orientationMask)
 			}
 		}
 	}
@@ -650,5 +652,5 @@ public func ==(lhs: S2CellId, rhs: S2CellId) -> Bool {
 }
 
 public func <(lhs: S2CellId, rhs: S2CellId) -> Bool {
-	return S2CellId.unsignedLongLessThan(lhs: lhs.id, rhs: rhs.id)
+	return S2CellId.unsignedLongLessThan(lhs.id, rhs: rhs.id)
 }

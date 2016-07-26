@@ -186,8 +186,8 @@ public class S2RegionCoverer {
 		// number of cells returned in many cases, and it is cheap compared to
 		// computing the covering in the first place.
 		
-		let tmp = getCoveringUnion(region: region)
-		return tmp.denormalize(minLevel: minLevel, levelMod: levelMod)
+		let tmp = getCoveringUnion(region)
+		return tmp.denormalize(minLevel, levelMod: levelMod)
 	}
 	
 	/**
@@ -199,8 +199,8 @@ public class S2RegionCoverer {
 		- Returns: The list filled in by this method
 	*/
 	public func getInteriorCovering(region: S2Region) -> [S2CellId] {
-		let tmp =  getInteriorCoveringUnion(region: region)
-		return tmp.denormalize(minLevel: minLevel, levelMod: levelMod)
+		let tmp =  getInteriorCoveringUnion(region)
+		return tmp.denormalize(minLevel, levelMod: levelMod)
 	}
 	
 	/**
@@ -213,7 +213,7 @@ public class S2RegionCoverer {
 	*/
 	public func getCoveringUnion(region: S2Region) -> S2CellUnion {
 		interiorCovering = false
-		getCoveringInternal(region: region)
+		getCoveringInternal(region)
 		return S2CellUnion(cellIds: result)
 	}
 
@@ -223,7 +223,7 @@ public class S2RegionCoverer {
 	*/
 	public func getInteriorCoveringUnion(region: S2Region) -> S2CellUnion {
 		interiorCovering = true
-		getCoveringInternal(region: region)
+		getCoveringInternal(region)
 		return S2CellUnion(cellIds: result)
 	}
 	
@@ -233,19 +233,19 @@ public class S2RegionCoverer {
 		it should not be expanded further.
 	*/
 	private func newCandidate(cell: S2Cell) -> Candidate? {
-		guard let region = region where region.mayIntersect(cell: cell) else { return nil }
+		guard let region = region where region.mayIntersect(cell) else { return nil }
 		
 		let cellLevel = Int(cell.level)
 		var isTerminal = false
 		if cellLevel >= minLevel {
 			if interiorCovering {
-				if region.contains(cell: cell) {
+				if region.contains(cell) {
 					isTerminal = true
 				} else if cellLevel + levelMod > maxLevel {
 					return nil
 				}
 			} else {
-				if cellLevel + levelMod > maxLevel || region.contains(cell: cell) {
+				if cellLevel + levelMod > maxLevel || region.contains(cell) {
 					isTerminal = true
 				}
 			}
@@ -275,7 +275,7 @@ public class S2RegionCoverer {
 		// Expand one level at a time until we hit min_level_ to ensure that
 		// we don't skip over it.
 		var numLevels = (Int(candidate.cell.level) < minLevel) ? 1 : levelMod
-		let numTerminals = expandChildren(candidate: &candidate, cell: candidate.cell, numLevels: &numLevels)
+		let numTerminals = expandChildren(&candidate, cell: candidate.cell, numLevels: &numLevels)
 		
 		if candidate.children.isEmpty {
 			// Do nothing
@@ -285,7 +285,7 @@ public class S2RegionCoverer {
 			// intersect the region, but may not be contained by it - we need to
 			// subdivide them further.
 			candidate.isTerminal = true
-			addCandidate(candidate: candidate)
+			addCandidate(candidate)
 		} else {
 			// We negate the priority so that smaller absolute priorities are returned
 			// first. The heuristic is designed to refine the largest cells first,
@@ -303,7 +303,7 @@ public class S2RegionCoverer {
 		Populate the children of "candidate" by expanding the given number of levels from the given cell.
 		Returns the number of children that were marked "terminal".
 	*/
-	private func expandChildren(candidate: inout Candidate, cell: S2Cell, numLevels: inout Int) -> Int {
+	private func expandChildren(inout candidate: Candidate, cell: S2Cell, inout numLevels: Int) -> Int {
 		guard let region = region else { return 0 }
 		
 		numLevels -= 1
@@ -311,12 +311,12 @@ public class S2RegionCoverer {
 		var numTerminals = 0
 		for childCell in childCells {
 			if numLevels > 0 {
-				if region.mayIntersect(cell: childCell) {
-					numTerminals += expandChildren(candidate: &candidate, cell: childCell, numLevels: &numLevels)
+				if region.mayIntersect(childCell) {
+					numTerminals += expandChildren(&candidate, cell: childCell, numLevels: &numLevels)
 				}
 				continue
 			}
-			if let child = newCandidate(cell: childCell) {
+			if let child = newCandidate(childCell) {
 				candidate.children.append(child)
 				if child.isTerminal {
 					numTerminals += 1
@@ -337,16 +337,16 @@ public class S2RegionCoverer {
 		if false && maxCells >= 4 {
 			// Find the maximum level such that the bounding cap contains at most one cell vertex at that level.
 			let cap = region.capBound
-			var level = min(S2Projections.minWidth.getMaxLevel(value: 2 * cap.angle.radians), min(maxLevel, S2CellId.maxLevel - 1))
+			var level = min(S2Projections.minWidth.getMaxLevel(2 * cap.angle.radians), min(maxLevel, S2CellId.maxLevel - 1))
 			if levelMod > 1 && level > minLevel {
 				level -= (level - minLevel) % levelMod
 			}
 			// We don't bother trying to optimize the level == 0 case, since more than four face cells may be required.
 			if level > 0 {
 				// Find the leaf cell containing the cap axis, and determine which subcell of the parent cell contains it.
-				let base = S2CellId(point: cap.axis).getVertexNeighbors(level: level)
+				let base = S2CellId(point: cap.axis).getVertexNeighbors(level)
 				for id in base {
-					addCandidate(candidate: newCandidate(cell: S2Cell(cellId: id)))
+					addCandidate(newCandidate(S2Cell(cellId: id)))
 				}
 				return
 			}
@@ -354,7 +354,7 @@ public class S2RegionCoverer {
 		
 		// Default: start with all six cube faces.
 		for face in 0 ..< 6 {
-			addCandidate(candidate: newCandidate(cell: S2RegionCoverer.faceCells[face]))
+			addCandidate(newCandidate(S2RegionCoverer.faceCells[face]))
 		}
 	}
 	
@@ -380,20 +380,20 @@ public class S2RegionCoverer {
 		self.region = region
 		
 		getInitialCandidates()
-		candidateQueue.sort()
+		candidateQueue.sortInPlace()
 		while !candidateQueue.isEmpty && (!interiorCovering || result.count < maxCells) {
 			var candidate = candidateQueue.removeFirst().candidate
 			if (Int(candidate.cell.level) < minLevel || candidate.children.count == 1
 				|| result.count + (interiorCovering ? 0 : candidateQueue.count) + candidate.children.count <= maxCells) {
 				// Expand this candidate into its children.
 				for child in candidate.children {
-					addCandidate(candidate: child)
+					addCandidate(child)
 				}
 			} else if interiorCovering {
 				// Do nothing
 			} else {
 				candidate.isTerminal = true
-				addCandidate(candidate: candidate)
+				addCandidate(candidate)
 			}
 		}
 		

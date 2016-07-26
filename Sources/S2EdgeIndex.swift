@@ -67,9 +67,9 @@ public class S2EdgeIndex {
 		var cellList: [Int64] = []
 		var edgeList: [Int] = []
 		for i in 0 ..< numEdges {
-			let from = edgeFrom(index: i)
-			let to = edgeTo(index: i)
-			let (level, cover) = getCovering(a: from, b: to, thickenEdge: true)
+			let from = edgeFrom(i)
+			let to = edgeTo(i)
+			let (level, cover) = getCovering(from, b: to, thickenEdge: true)
 			minimumS2LevelUsed = min(minimumS2LevelUsed, level);
 			for cellId in cover {
 				cellList.append(cellId.id)
@@ -90,7 +90,7 @@ public class S2EdgeIndex {
 			indices[i] = i
 		}
 		
-		indices.sort(isOrderedBefore: { (cells[$0], edges[$0]) < (cells[$1], edges[$1]) })
+		indices.sortInPlace({ (cells[$0], edges[$0]) < (cells[$1], edges[$1]) })
 		
 		// copy the cells and edges in the order given by the sorted list of indices
 		var newCells: [Int64] = []
@@ -157,15 +157,15 @@ public class S2EdgeIndex {
 	*/
 	public func findCandidateCrossings(a: S2Point, b: S2Point) -> [Int] {
 		precondition(isIndexComputed)
-		let cover = getCovering(a: a, b: b, thickenEdge: false).edgeCovering
+		let cover = getCovering(a, b: b, thickenEdge: false).edgeCovering
 		
 		// Edge references are inserted into the map once for each covering cell, so absorb duplicates here
-		var uniqueSet = getEdgesInParentCells(cover: cover)
+		var uniqueSet = getEdgesInParentCells(cover)
 		
 		// TODO(user): An important optimization for long query
 		// edges (Contains queries): keep a bounding cap and clip the query
 		// edge to the cap before starting the descent.
-		getEdgesInChildrenCells(a: a, b: b, cover: cover, candidateCrossings: &uniqueSet)
+		getEdgesInChildrenCells(a, b: b, cover: cover, candidateCrossings: &uniqueSet)
 		
 		return Array(uniqueSet)
 	}
@@ -231,18 +231,18 @@ public class S2EdgeIndex {
 		// thickening is honored (it's not a big deal if we honor it when we don't
 		// request it) when doing the covering-by-cap trick.
 		let edgeLength = a.angle(to: b)
-		let idealLevel = S2Projections.minWidth.getMaxLevel(value: edgeLength * (1 + 2 * S2EdgeIndex.thickening))
+		let idealLevel = S2Projections.minWidth.getMaxLevel(edgeLength * (1 + 2 * S2EdgeIndex.thickening))
 		
 		var containingCellId: S2CellId
 		if !thickenEdge {
-			containingCellId = S2EdgeIndex.containingCell(pa: a, pb: b)
+			containingCellId = S2EdgeIndex.containingCell(a, pb: b)
 		} else {
 			if idealLevel == S2CellId.maxLevel {
 				// If the edge is tiny, instabilities are more likely, so we
 				// want to limit the number of operations.
 				// We pretend we are in a cell much larger so as to trigger the
 				// 'needs covering' case, so we won't try to thicken the edge.
-				containingCellId = S2CellId(id: 0xFFF0).parent(level: 3)
+				containingCellId = S2CellId(id: 0xFFF0).parent(3)
 			} else {
 				let pq = (b - a) * S2EdgeIndex.thickening
 				let x = edgeLength * S2EdgeIndex.thickening
@@ -254,7 +254,7 @@ public class S2EdgeIndex {
 				// idealLevel != 0 here. The farther p and q can be is roughly
 				// a quarter Earth away from each other, so we remain
 				// Theta(THICKENING).
-				containingCellId = S2EdgeIndex.containingCell(pa: (p - ortho), pb: (p + ortho), pc: (q - ortho), pd: (q + ortho))
+				containingCellId = S2EdgeIndex.containingCell((p - ortho), pb: (p + ortho), pc: (q - ortho), pd: (q + ortho))
 			}
 		}
 		
@@ -269,8 +269,8 @@ public class S2EdgeIndex {
 			// trick below doesn't work. For now, we will add the whole S2 sphere.
 			// TODO(user): Do something a tad smarter (and beware of the
 			// antipodal case).
-			var cellId = S2CellId.begin(level: 0)
-			while cellId != S2CellId.end(level: 0) {
+			var cellId = S2CellId.begin(0)
+			while cellId != S2CellId.end(0) {
 				edgeCovering.append(cellId)
 				cellId = cellId.next()
 			}
@@ -287,7 +287,7 @@ public class S2EdgeIndex {
 		// cap center.
 		let middle = S2Point.normalize(point: ((a + b) / 2))
 		let actualLevel = min(idealLevel, S2CellId.maxLevel - 1);
-		edgeCovering = S2CellId(point: middle).getVertexNeighbors(level: actualLevel)
+		edgeCovering = S2CellId(point: middle).getVertexNeighbors(actualLevel)
 		return (actualLevel, edgeCovering)
 	}
 	
@@ -302,13 +302,13 @@ public class S2EdgeIndex {
 	private func getEdges(cell1: Int64, cell2: Int64) -> (Int, Int) {
 		// ensure cell1 <= cell2
 		if cell1 > cell2 {
-			return getEdges(cell1: cell2, cell2: cell1)
+			return getEdges(cell2, cell2: cell1)
 		}
 		// The binary search returns -N-1 to indicate an insertion point at index N,
 		// if an exact match cannot be found. Since the edge indices queried for are
 		// not valid edge indices, we will always get -N-1, so we immediately
 		// convert to N.
-		return (-1 - binarySearch(cell: cell1, edge: .max), -1 - binarySearch(cell: cell2, edge: .max))
+		return (-1 - binarySearch(cell1, edge: .max), -1 - binarySearch(cell2, edge: .max))
 	}
 	
 	private func binarySearch(cell: Int64, edge: Int) -> Int {
@@ -341,14 +341,16 @@ public class S2EdgeIndex {
 		for coverCell in cover {
 			var parentLevel = coverCell.level - 1
 			while parentLevel >= minimumS2LevelUsed {
-				if !parentCells.insert(coverCell.parent(level: parentLevel)).inserted { break } // cell is already in => parents are too.
+                parentCells.insert(coverCell.parent(parentLevel))
+				if !parentCells.contains(coverCell.parent(parentLevel))
+                { break } // cell is already in => parents are too.
 				parentLevel -= 1
 			}
 		}
 		
 		// Put parent cell edge references into result.
 		for parentCell in parentCells {
-			let bounds = getEdges(cell1: parentCell.id, cell2: parentCell.id)
+			let bounds = getEdges(parentCell.id, cell2: parentCell.id)
 			for i in bounds.0 ..< bounds.1 {
 				candidateCrossings.insert(edges[i])
 			}
@@ -388,7 +390,7 @@ public class S2EdgeIndex {
 		for i in 0 ..< 4 {
 			let fromPoint = vertices[i];
 			let toPoint = vertices[(i + 1) % 4]
-			if lenientCrossing(a: a, b: b, c: fromPoint, d: toPoint) {
+			if lenientCrossing(a, b: b, c: fromPoint, d: toPoint) {
 				return true
 			}
 		}
@@ -401,20 +403,20 @@ public class S2EdgeIndex {
 		refined to eliminate quickly subcells that contain many edges but do not
 		intersect with edge.
 	*/
-	private func getEdgesInChildrenCells(a: S2Point, b: S2Point, cover: [S2CellId], candidateCrossings: inout Set<Int>) {
+	private func getEdgesInChildrenCells(a: S2Point, b: S2Point, cover: [S2CellId], inout candidateCrossings: Set<Int>) {
 		var cover = cover
 		// Put all edge references of (covering cells + descendant cells) into result.
 		// This relies on the natural ordering of S2CellIds.
 		while !cover.isEmpty {
 			let cell = cover.removeLast()
-			var bounds = getEdges(cell1: cell.rangeMin.id, cell2: cell.rangeMax.id)
+			var bounds = getEdges(cell.rangeMin.id, cell2: cell.rangeMax.id)
 			if bounds.1 - bounds.0 <= 16 {
 				for i in bounds.0 ..< bounds.1 {
 					candidateCrossings.insert(edges[i])
 				}
 			} else {
 				// Add cells at this level
-				bounds = getEdges(cell1: cell.id, cell2: cell.id)
+				bounds = getEdges(cell.id, cell2: cell.id)
 				for i in bounds.0 ..< bounds.1 {
 					candidateCrossings.insert(edges[i])
 				}
@@ -428,7 +430,7 @@ public class S2EdgeIndex {
 					// Note that given the guarantee of AppendCovering, it is enough
 					// to check that the edge intersect with the cell boundary as it
 					// cannot be fully contained in a cell.
-					if S2EdgeIndex.edgeIntersectsCellBoundary(a: a, b: b, cell: child) {
+					if S2EdgeIndex.edgeIntersectsCellBoundary(a, b: b, cell: child) {
 						cover.append(child.cellId)
 					}
 				}
@@ -442,7 +444,7 @@ public class S2EdgeIndex {
 	
 		The current edge in the iteration has index index(), goes between from() and to().
 	*/
-	public struct DataEdgeIterator: Sequence, IteratorProtocol {
+	public struct DataEdgeIterator: SequenceType, GeneratorType {
 		
 		/// The structure containing the data edges.
 		private let edgeIndex: S2EdgeIndex
@@ -468,14 +470,14 @@ public class S2EdgeIndex {
 		
 		/// Initializes the iterator to iterate over a set of candidates that may cross the edge (a,b).
 		public mutating func getCandidates(a: S2Point, b: S2Point) {
-			edgeIndex.predictAdditionalCalls(n: 1)
+			edgeIndex.predictAdditionalCalls(1)
 			isBruteForce = !edgeIndex.isIndexComputed
 			if isBruteForce {
 				edgeIndex.queryCount += 1
 				currentIndex = 0
 				numEdges = edgeIndex.numEdges
 			} else {
-				candidates = edgeIndex.findCandidateCrossings(a: a, b: b)
+				candidates = edgeIndex.findCandidateCrossings(a, b: b)
 				currentIndexInCandidates = 0
 				if !candidates.isEmpty {
 					currentIndex = candidates[0]

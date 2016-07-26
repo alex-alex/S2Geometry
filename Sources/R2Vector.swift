@@ -30,11 +30,11 @@ public struct R2Vector: Comparable {
 	
 	// ---
 	
-	public func dotProd(_ b: R2Vector) -> Double {
+	public func dotProd(b: R2Vector) -> Double {
 		return x * b.x + y * b.y
 	}
 	
-	public func crossProd(_ b: R2Vector) -> Double {
+	public func crossProd(b: R2Vector) -> Double {
 		return x * b.y - y * b.x
 	}
 	

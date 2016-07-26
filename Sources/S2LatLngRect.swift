@@ -153,7 +153,7 @@ public struct S2LatLngRect: S2Region {
 		let lo = S2LatLng(latRadians: a.lat.lo, lngRadians: aLng).point
 		let hi = S2LatLng(latRadians: a.lat.hi, lngRadians: aLng).point
 		let loCrossHi = S2LatLng(latRadians: 0, lngRadians: aLng - M_PI_2).normalized.point
-		return S2EdgeUtil.getDistance(x: p.point, a: lo, b: hi, aCrossB: loCrossHi)
+		return S2EdgeUtil.getDistance(p.point, a: lo, b: hi, aCrossB: loCrossHi)
 	}
 	
 	/**
@@ -214,10 +214,10 @@ public struct S2LatLngRect: S2Region {
 		let bHi = S2LatLng(latRadians: b.lat.hi, lngRadians: bLng).point
 		let bLoCrossHi = S2LatLng(latRadians: 0, lngRadians: bLng - M_PI_2).normalized.point
 		
-		return min(S2EdgeUtil.getDistance(x: aLo, a: bLo, b: bHi, aCrossB: bLoCrossHi),
-			min(S2EdgeUtil.getDistance(x: aHi, a: bLo, b: bHi, aCrossB: bLoCrossHi),
-			min(S2EdgeUtil.getDistance(x: bLo, a: aLo, b: aHi, aCrossB: aLoCrossHi),
-			S2EdgeUtil.getDistance(x: bHi, a: aLo, b: aHi, aCrossB: aLoCrossHi))))
+		return min(S2EdgeUtil.getDistance(aLo, a: bLo, b: bHi, aCrossB: bLoCrossHi),
+			min(S2EdgeUtil.getDistance(aHi, a: bLo, b: bHi, aCrossB: bLoCrossHi),
+			min(S2EdgeUtil.getDistance(bLo, a: aLo, b: aHi, aCrossB: aLoCrossHi),
+			S2EdgeUtil.getDistance(bHi, a: aLo, b: aHi, aCrossB: aLoCrossHi))))
 	}
 	
 	/**
@@ -240,7 +240,7 @@ public struct S2LatLngRect: S2Region {
 		need to be normalized.
 	*/
 	public func interiorContains(point p: S2Point) -> Bool {
-		return interiorContains(ll: S2LatLng(point: p))
+		return interiorContains(S2LatLng(point: p))
 	}
 	
 	/// More efficient version of InteriorContains() that accepts a S2LatLng rather than an S2Point.
@@ -305,7 +305,7 @@ public struct S2LatLngRect: S2Region {
 		for i in 0 ..< 4 {
 			cellV[i] = cell.getVertex(i) // Must be normalized.
 			cellLl[i] = S2LatLng(point: cellV[i])
-			if (contains(ll: cellLl[i])) {
+			if (contains(cellLl[i])) {
 				return true // Quick acceptance test.
 			}
 		}
@@ -319,19 +319,19 @@ public struct S2LatLngRect: S2Region {
 			let a = cellV[i]
 			let b = cellV[(i + 1) & 3]
 			if edgeLng.contains(point: lng.lo) {
-				if S2LatLngRect.intersectsLngEdge(a: a, b: b, lat: lat, lng: lng.lo) {
+				if S2LatLngRect.intersectsLngEdge(a, b: b, lat: lat, lng: lng.lo) {
 					return true
 				}
 			}
 			if edgeLng.contains(point: lng.hi) {
-				if S2LatLngRect.intersectsLngEdge(a: a, b: b, lat: lat, lng: lng.hi) {
+				if S2LatLngRect.intersectsLngEdge(a, b: b, lat: lat, lng: lng.hi) {
 					return true
 				}
 			}
-			if S2LatLngRect.intersectsLatEdge(a: a, b: b, lat: lat.lo, lng: lng) {
+			if S2LatLngRect.intersectsLatEdge(a, b: b, lat: lat.lo, lng: lng) {
 				return true
 			}
-			if S2LatLngRect.intersectsLatEdge(a: a, b: b, lat: lat.hi, lng: lng) {
+			if S2LatLngRect.intersectsLatEdge(a, b: b, lat: lat.hi, lng: lng) {
 				return true
 			}
 		}
@@ -375,7 +375,7 @@ public struct S2LatLngRect: S2Region {
 		if isEmpty {
 			return self
 		}
-		return S2LatLngRect(lat: lat.expanded(radius: margin.lat.radians).intersection(with: S2LatLngRect.fullLat), lng: lng.expanded(radius: margin.lng.radians))
+		return S2LatLngRect(lat: lat.expanded(margin.lat.radians).intersection(with: S2LatLngRect.fullLat), lng: lng.expanded(margin.lng.radians))
 	}
 	
 	/// Return the smallest rectangle containing the union of this rectangle and the given rectangle.
@@ -385,7 +385,7 @@ public struct S2LatLngRect: S2Region {
 	
 	/// The point 'p' does not need to be normalized.
 	public func contains(point p: S2Point) -> Bool {
-		return contains(ll: S2LatLng(point: p))
+		return contains(S2LatLng(point: p))
 	}
 	
 	/// Return true if the edge AB intersects the given edge of constant longitude.
@@ -393,7 +393,7 @@ public struct S2LatLngRect: S2Region {
 		// Return true if the segment AB intersects the given edge of constant
 		// longitude. The nice thing about edges of constant longitude is that
 		// they are straight lines on the sphere (geodesics).
-		return S2.simpleCrossing(a: a, b: b, c: S2LatLng(latRadians: lat.lo, lngRadians: lng).point, d: S2LatLng(latRadians: lat.hi, lngRadians: lng).point)
+		return S2.simpleCrossing(a, b: b, c: S2LatLng(latRadians: lat.lo, lngRadians: lng).point, d: S2LatLng(latRadians: lat.hi, lngRadians: lng).point)
 	}
 		
 	/// Return true if the edge AB intersects the given edge of constant latitude.
@@ -404,14 +404,14 @@ public struct S2LatLngRect: S2Region {
 		// assert (S2.isUnitLength(a) && S2.isUnitLength(b));
 		
 		// First, compute the normal to the plane AB that points vaguely north.
-		var z = S2Point.normalize(point: S2.robustCrossProd(a: a, b: b))
+		var z = S2Point.normalize(point: S2.robustCrossProd(a, b: b))
 		if z.z < 0 {
 			z = -z
 		}
 		
 		// Extend this to an orthonormal frame (x,y,z) where x is the direction
 		// where the great circle through AB achieves its maximium latitude.
-		let y = S2Point.normalize(point: S2.robustCrossProd(a: z, b: S2Point(x: 0, y: 0, z: 1)))
+		let y = S2Point.normalize(point: S2.robustCrossProd(z, b: S2Point(x: 0, y: 0, z: 1)))
 		let x = y.crossProd(z)
 		// assert (S2.isUnitLength(x) && x.z >= 0);
 		
@@ -485,7 +485,7 @@ public struct S2LatLngRect: S2Region {
 			if lngSpan < 2 * M_PI {
 				var midCap = S2Cap(axis: center.point, angle: S1Angle(radians: 0))
 				for k in 0 ..< 4 {
-					midCap = midCap.add(point: getVertex(k: k).point)
+					midCap = midCap.add(point: getVertex(k).point)
 				}
 				if midCap.height < poleCap.height {
 					return midCap
@@ -502,7 +502,7 @@ public struct S2LatLngRect: S2Region {
 	public func contains(cell: S2Cell) -> Bool {
 		// A latitude-longitude rectangle contains a cell if and only if it contains
 		// the cell's bounding rectangle. (This is an exact test.)
-		return contains(other: cell.rectBound)
+		return contains(cell.rectBound)
 	}
 	
 	/**

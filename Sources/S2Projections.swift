@@ -345,7 +345,7 @@ public struct S2Projections {
 	
 	public static func xyzToFace(point p: S2Point) -> Int {
 		var face = p.largestAbsComponent
-		if p.get(axis: face) < 0 {
+		if p.get(face) < 0 {
 			face += 3
 		}
 		return face
@@ -353,15 +353,15 @@ public struct S2Projections {
 
 	public static func faceXyzToUv(face: Int, point p: S2Point) -> R2Vector? {
 		if face < 3 {
-			if p.get(axis: face) <= 0 {
+			if p.get(face) <= 0 {
 				return nil
 			}
 		} else {
-			if p.get(axis: face - 3) >= 0 {
+			if p.get(face - 3) >= 0 {
 				return nil
 			}
 		}
-		return validFaceXyzToUv(face: face, point: p)
+		return validFaceXyzToUv(face, point: p)
 	}
 	
 	public static func getUNorm(face: Int, u: Double) -> S2Point {
@@ -399,7 +399,7 @@ public struct S2Projections {
 	}
 	
 	public static func getNorm(face: Int) -> S2Point {
-		return faceUvToXyz(face: face, u: 0, v: 0)
+		return faceUvToXyz(face, u: 0, v: 0)
 	}
 	
 	public static func getUAxis(face: Int) -> S2Point {
