@@ -267,7 +267,7 @@ class S2CellIdTests: XCTestCase {
 			// TestAllNeighbors computes approximately 2**(2*(diff+1)) cell id1s,
 			// so it's not reasonable to use large values of "diff".
 			let maxDiff = min(6, S2CellId.maxLevel - id1.level - 1)
-			let level = id1.level + Int.random(max: UInt32(maxDiff))
+			let level = id1.level + Int.random(max: maxDiff)
 			testAllNeighbors(id1, level)
 		}
 	}

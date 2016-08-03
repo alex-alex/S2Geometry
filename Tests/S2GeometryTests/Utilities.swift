@@ -16,7 +16,7 @@ import XCTest
 @testable import S2Geometry
 
 extension Int {
-	static func random(max: UInt32 = .max) -> Int {
+	static func random(max: Int = Int(UInt32.max)) -> Int {
 		#if os(Linux)
 			return Int(random() % (max + 1))
 		#else
@@ -57,13 +57,13 @@ extension S2CellId {
 		approximately uniform over the surface of the sphere.
 	*/
 	static func random(level: Int) -> S2CellId {
-		let face = Int.random(max: UInt32(S2CellId.numFaces))
+		let face = Int.random(max: S2CellId.numFaces)
 		let pos = Int64(Int.random()) & ((1 << (2 * Int64(S2CellId.maxLevel))) - 1)
 		return S2CellId(face: face, pos: pos, level: level)
 	}
 	
 	static var random: S2CellId {
-		return random(level: Int.random(max: UInt32(S2CellId.maxLevel) + 1))
+		return random(level: Int.random(max: S2CellId.maxLevel + 1))
 	}
 }
 
