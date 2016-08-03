@@ -23,11 +23,11 @@ public struct S2Cell: S2Region, Equatable {
 	
 	public let cellId: S2CellId
 	public let face: UInt8
-	public let level: UInt8
+	public let level: Int8
 	public let orientation: UInt8
 	public let uv: [[Double]]
 	
-	internal init(cellId: S2CellId = S2CellId(), face: UInt8 = 0, level: UInt8 = 0, orientation: UInt8 = 0, uv: [[Double]] = [[0, 0], [0, 0]]) {
+	internal init(cellId: S2CellId = S2CellId(), face: UInt8 = 0, level: Int8 = 0, orientation: UInt8 = 0, uv: [[Double]] = [[0, 0], [0, 0]]) {
 		self.cellId = cellId
 		self.face = face
 		self.level = level
@@ -45,7 +45,7 @@ public struct S2Cell: S2Region, Equatable {
 		
 		face = UInt8(cellId.toFaceIJOrientation(i: &i, j: &j, orientation: &mOrientation))
 		orientation = UInt8(mOrientation!)
-		level = UInt8(cellId.level)
+		level = Int8(cellId.level)
 		
 		let cellSize = 1 << (S2CellId.maxLevel - Int(level))
 		var _uv: [[Double]] = [[0, 0], [0, 0]]
@@ -131,7 +131,7 @@ public struct S2Cell: S2Region, Equatable {
 		let uvMid = centerUV
 		
 		// Create four children with the appropriate bounds.
-		var children: [S2Cell] = [S2Cell(), S2Cell(), S2Cell(), S2Cell()]
+		var children: [S2Cell] = []
 		var id = cellId.childBegin()
 		for pos in 0 ..< 4 {
 			
@@ -253,7 +253,22 @@ public struct S2Cell: S2Region, Equatable {
 	////////////////////////////////////////////////////////////////////////
 	
 	public var capBound: S2Cap {
-		return S2Cap()
+		// Use the cell center in (u,v)-space as the cap axis. This vector is
+		// very close to GetCenter() and faster to compute. Neither one of these
+		// vectors yields the bounding cap with minimal surface area, but they
+		// are both pretty close.
+		//
+		// It's possible to show that the two vertices that are furthest from
+		// the (u,v)-origin never determine the maximum cap size (this is a
+		// possible future optimization).
+		
+		let u = 0.5 * (uv[0][0] + uv[0][1])
+		let v = 0.5 * (uv[1][0] + uv[1][1])
+		var cap = S2Cap(axis: S2Point.normalize(point: S2Projections.faceUvToXyz(face: Int(face), u: u, v: v)), height: 0)
+		for k in 0 ..< 4 {
+			cap = cap.add(point: getVertex(k))
+		}
+		return cap
 	}
 	
 	// We grow the bounds slightly to make sure that the bounding rectangle
@@ -292,7 +307,7 @@ public struct S2Cell: S2Region, Equatable {
 			if (lat.lo == -M_PI_2 || lat.hi == M_PI_2) {
 				return S2LatLngRect(lat: lat, lng: S1Interval.full)
 			}
-			let lng = S1Interval.fromPointPair(p1: getLongitude(i: i, j: 1 - j), p2: getLongitude(i: 1 - i, j: j))
+			let lng = S1Interval(p1: getLongitude(i: i, j: 1 - j), p2: getLongitude(i: 1 - i, j: j))
 			return S2LatLngRect(lat: lat, lng: lng.expanded(radius: S2Cell.maxError))
 		}
 		
@@ -319,7 +334,7 @@ public struct S2Cell: S2Region, Equatable {
 	}
 	
 	public func mayIntersect(cell: S2Cell) -> Bool {
-		return cellId.intersects(other: cell.cellId)
+		return cellId.intersects(with: cell.cellId)
 	}
 	
 	// Return the latitude or longitude of the cell vertex given by (i,j),

@@ -311,7 +311,7 @@ public struct LongitudePruner {
 	*/
 	public mutating func intersects(with v1: S2Point) -> Bool {
 		let lng1 = S2LatLng.longitude(point: v1).radians
-		let result = interval.intersects(with: S1Interval.fromPointPair(p1: lng0, p2: lng1))
+		let result = interval.intersects(with: S1Interval(p1: lng0, p2: lng1))
 		self.lng0 = lng1
 		return result
 	}

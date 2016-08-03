@@ -16,7 +16,7 @@
 	An S2LatLngRect represents a latitude-longitude rectangle. It is capable of
 	representing the empty and full rectangles as well as single points.
 */
-public struct S2LatLngRect: S2Region {
+public struct S2LatLngRect: S2Region, Equatable {
 	
 	public let lat: R1Interval
 	public let lng: S1Interval
@@ -112,19 +112,19 @@ public struct S2LatLngRect: S2Region {
 		// Return the points in CCW order (SW, SE, NE, NW).
 		switch (k) {
 		case 0:
-			return S2LatLng(latRadians: lat.lo, lngRadians: lng.lo)
+			return S2LatLng.fromRadians(lat: lat.lo, lng: lng.lo)
 		case 1:
-			return S2LatLng(latRadians: lat.lo, lngRadians: lng.hi)
+			return S2LatLng.fromRadians(lat: lat.lo, lng: lng.hi)
 		case 2:
-			return S2LatLng(latRadians: lat.hi, lngRadians: lng.hi)
+			return S2LatLng.fromRadians(lat: lat.hi, lng: lng.hi)
 		default:
-			return S2LatLng(latRadians: lat.hi, lngRadians: lng.lo)
+			return S2LatLng.fromRadians(lat: lat.hi, lng: lng.lo)
 		}
 	}
 	
 	/// Return the center of the rectangle in latitude-longitude space (in general this is not the center of the region on the sphere).
 	public var center: S2LatLng {
-		return S2LatLng(latRadians: lat.center, lngRadians: lng.center)
+		return S2LatLng.fromRadians(lat: lat.center, lng: lng.center)
 	}
 	
 	/**
@@ -150,9 +150,9 @@ public struct S2LatLngRect: S2Region {
 			aLng = lng.hi
 		}
 		
-		let lo = S2LatLng(latRadians: a.lat.lo, lngRadians: aLng).point
-		let hi = S2LatLng(latRadians: a.lat.hi, lngRadians: aLng).point
-		let loCrossHi = S2LatLng(latRadians: 0, lngRadians: aLng - M_PI_2).normalized.point
+		let lo = S2LatLng.fromRadians(lat: a.lat.lo, lng: aLng).point
+		let hi = S2LatLng.fromRadians(lat: a.lat.hi, lng: aLng).point
+		let loCrossHi = S2LatLng.fromRadians(lat: 0, lng: aLng - M_PI_2).normalized.point
 		return S2EdgeUtil.getDistance(x: p.point, a: lo, b: hi, aCrossB: loCrossHi)
 	}
 	
@@ -207,12 +207,12 @@ public struct S2LatLngRect: S2Region {
 		// to a single point-edge distance by comparing the relative latitudes of the
 		// endpoints, but for the sake of clarity, we'll do all four point-edge
 		// distance tests.
-		let aLo = S2LatLng(latRadians: a.lat.lo, lngRadians: aLng).point
-		let aHi = S2LatLng(latRadians: a.lat.hi, lngRadians: aLng).point
-		let aLoCrossHi = S2LatLng(latRadians: 0, lngRadians: aLng - M_PI_2).normalized.point
-		let bLo = S2LatLng(latRadians: b.lat.lo, lngRadians: bLng).point
-		let bHi = S2LatLng(latRadians: b.lat.hi, lngRadians: bLng).point
-		let bLoCrossHi = S2LatLng(latRadians: 0, lngRadians: bLng - M_PI_2).normalized.point
+		let aLo = S2LatLng.fromRadians(lat: a.lat.lo, lng: aLng).point
+		let aHi = S2LatLng.fromRadians(lat: a.lat.hi, lng: aLng).point
+		let aLoCrossHi = S2LatLng.fromRadians(lat: 0, lng: aLng - M_PI_2).normalized.point
+		let bLo = S2LatLng.fromRadians(lat: b.lat.lo, lng: bLng).point
+		let bHi = S2LatLng.fromRadians(lat: b.lat.hi, lng: bLng).point
+		let bLoCrossHi = S2LatLng.fromRadians(lat: 0, lng: bLng - M_PI_2).normalized.point
 		
 		return min(S2EdgeUtil.getDistance(x: aLo, a: bLo, b: bHi, aCrossB: bLoCrossHi),
 			min(S2EdgeUtil.getDistance(x: aHi, a: bLo, b: bHi, aCrossB: bLoCrossHi),
@@ -225,7 +225,7 @@ public struct S2LatLngRect: S2Region {
 		Empty rectangles have a negative width and height.
 	*/
 	public var size: S2LatLng {
-		return S2LatLng(latRadians: lat.length, lngRadians: lng.length)
+		return S2LatLng.fromRadians(lat: lat.length, lng: lng.length)
 	}
 	
 	/// More efficient version of Contains() that accepts a S2LatLng rather than an S2Point.
@@ -267,6 +267,16 @@ public struct S2LatLngRect: S2Region {
 	
 	/// Return true if this rectangle and the given other rectangle have any points in common.
 	public func intersects(with other: S2LatLngRect) -> Bool {
+		
+		
+		
+		print("--- RECT intersects")
+		print("--- \(lat) \(other.lat) => \(lat.intersects(with: other.lat))")
+		print(latLo.degrees, latHi.degrees, "/", other.latLo.degrees, other.latHi.degrees)
+		print("--- \(lng) \(other.lng) (\(lng.isInverted) \(other.lng.isInverted)) => \(lng.intersects(with: other.lng))")
+		print(lngLo.degrees, lngHi.degrees, "/", other.lngLo.degrees, other.lngHi.degrees)
+		print("---")
+		
 		return lat.intersects(with: other.lat) && lng.intersects(with: other.lng)
 	}
 	
@@ -303,9 +313,11 @@ public struct S2LatLngRect: S2Region {
 		var cellLl: [S2LatLng] = []
 		
 		for i in 0 ..< 4 {
-			cellV[i] = cell.getVertex(i) // Must be normalized.
-			cellLl[i] = S2LatLng(point: cellV[i])
-			if (contains(ll: cellLl[i])) {
+			let vertex = cell.getVertex(i)
+			cellV.append(vertex) // Must be normalized.
+			let latlng = S2LatLng(point: vertex)
+			cellLl.append(latlng)
+			if contains(ll: latlng) {
 				return true // Quick acceptance test.
 			}
 		}
@@ -393,7 +405,7 @@ public struct S2LatLngRect: S2Region {
 		// Return true if the segment AB intersects the given edge of constant
 		// longitude. The nice thing about edges of constant longitude is that
 		// they are straight lines on the sphere (geodesics).
-		return S2.simpleCrossing(a: a, b: b, c: S2LatLng(latRadians: lat.lo, lngRadians: lng).point, d: S2LatLng(latRadians: lat.hi, lngRadians: lng).point)
+		return S2.simpleCrossing(a: a, b: b, c: S2LatLng.fromRadians(lat: lat.lo, lng: lng).point, d: S2LatLng.fromRadians(lat: lat.hi, lng: lng).point)
 	}
 		
 	/// Return true if the edge AB intersects the given edge of constant latitude.
@@ -515,6 +527,10 @@ public struct S2LatLngRect: S2Region {
 	public func mayIntersect(cell: S2Cell) -> Bool {
 		// This test is cheap but is NOT exact (see s2latlngrect.h).
 		return intersects(with: cell.rectBound)
+	}
+
+	public static func == (lhs: S2LatLngRect, rhs: S2LatLngRect) -> Bool {
+		return lhs.lat == rhs.lat && lhs.lng == rhs.lng
 	}
 	
 }

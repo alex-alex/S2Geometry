@@ -30,7 +30,7 @@
 	the point -Pi to construct two special intervals: the Full() interval is
 	[-Pi, Pi], and the Empty() interval is [Pi, -Pi].
 */
-public struct S1Interval {
+public struct S1Interval: Equatable {
 	
 	public let lo: Double
 	public let hi: Double
@@ -78,14 +78,14 @@ public struct S1Interval {
 		given points. This is equivalent to starting with an empty interval and
 		calling AddPoint() twice, but it is more efficient.
 	*/
-	public static func fromPointPair(p1: Double, p2: Double) -> S1Interval {
+	public init(p1: Double, p2: Double) {
 		var p1 = p1, p2 = p2
 		if p1 == -M_PI { p1 = M_PI }
 		if p2 == -M_PI { p2 = M_PI }
 		if S1Interval.positiveDistance(p1, p2) <= M_PI {
-			return S1Interval(lo: p1, hi: p2, checked: true)
+			self.init(lo: p1, hi: p2, checked: true)
 		} else {
-			return S1Interval(lo: p2, hi: p1, checked: true)
+			self.init(lo: p2, hi: p1, checked: true)
 		}
 	}
 	
@@ -364,4 +364,8 @@ public struct S1Interval {
 		return (b + M_PI) - (a - M_PI)
 	}
 	
+}
+
+public func ==(lhs: S1Interval, rhs: S1Interval ) -> Bool {
+	return (lhs.lo == rhs.lo && lhs.hi == rhs.hi) || (lhs.isEmpty && rhs.isEmpty)
 }

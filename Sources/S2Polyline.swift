@@ -8,4 +8,8 @@
 
 public struct S2Polyline {
 	
+	public init() {
+		
+	}
+	
 }

@@ -117,6 +117,10 @@ public struct S2CellId: Comparable, Hashable {
 		self.id = id
 	}
 	
+	public init(uid: UInt64) {
+		self.id = Int64(bitPattern: uid)
+	}
+	
 	public static let none = S2CellId()
 	
 	public static let sentinel = S2CellId(id: .max)
@@ -203,7 +207,7 @@ public struct S2CellId: Comparable, Hashable {
 	
 	/// The position of the cell center along the Hilbert curve over this face, in the range 0..(2**kPosBits-1).
 	public var pos: Int64 {
-		return (id & Int64(-1 >> S2CellId.faceBits))
+		return Int64(bitPattern: uid & (UInt64(bitPattern: -1) >> 3))
 	}
 	
 	/// Return the subdivision level of the cell (range 0..MAX_LEVEL).
@@ -283,7 +287,7 @@ public struct S2CellId: Comparable, Hashable {
 	}
 	
 	/// Return true if the given cell intersects this one.
-	public func intersects(other: S2CellId) -> Bool {
+	public func intersects(with other: S2CellId) -> Bool {
 		// assert (isValid() && other.isValid());
 		return other.rangeMin <= rangeMax && other.rangeMax >= rangeMin
 	}
@@ -306,24 +310,28 @@ public struct S2CellId: Comparable, Hashable {
 	
 	public func childBegin() -> S2CellId {
 		// assert (isValid() && level() < MAX_LEVEL);
-		let oldLsb = lowestOnBit
-		return S2CellId(id: id - oldLsb + (oldLsb >> 2))
+		let oldLsb = UInt64(bitPattern: lowestOnBit)
+		return S2CellId(uid: uid - oldLsb + (oldLsb >> 2))
 	}
 	
 	public func childBegin(level: Int) -> S2CellId {
 		// assert (isValid() && level >= this.level() && level <= MAX_LEVEL);
-		return S2CellId(id: id - lowestOnBit + S2CellId.lowestOnBit(forLevel: level))
+		let lsb = UInt64(bitPattern: lowestOnBit)
+		let lsbLevel = UInt64(bitPattern: S2CellId.lowestOnBit(forLevel: level))
+		return S2CellId(uid: uid - lsb + lsbLevel)
 	}
 	
 	public func childEnd() -> S2CellId {
 		// assert (isValid() && level() < MAX_LEVEL);
-		let oldLsb = lowestOnBit
-		return S2CellId(id: id + oldLsb + (oldLsb >> 2))
+		let oldLsb = UInt64(bitPattern: lowestOnBit)
+		return S2CellId(uid: uid + oldLsb + (oldLsb >> 2))
 	}
 	
 	public func childEnd(level: Int) -> S2CellId {
 		// assert (isValid() && level >= this.level() && level <= MAX_LEVEL);
-		return S2CellId(id: id + lowestOnBit + S2CellId.lowestOnBit(forLevel: level))
+		let lsb = UInt64(bitPattern: lowestOnBit)
+		let lsbLevel = UInt64(bitPattern: S2CellId.lowestOnBit(forLevel: level))
+		return S2CellId(uid: uid + lsb + lsbLevel)
 	}
 	
 	// Iterator-style methods for traversing the immediate children of a cell or
@@ -345,6 +353,9 @@ public struct S2CellId: Comparable, Hashable {
 		around from the last face to the first or vice versa.
 	*/
 	public func next() -> S2CellId {
+		
+		
+		
 		return S2CellId(id: Int64.addWithOverflow(id, lowestOnBit << 1).0)
 	}
 	
@@ -386,7 +397,136 @@ public struct S2CellId: Comparable, Hashable {
 	public static func end(level: Int) -> S2CellId {
 		return S2CellId(face: 5, pos: 0, level: 0).childEnd(level: level)
 	}
+
+	public struct NumberFormatException: Error {
+		public let description: String
+		public init(_ description: String = "") {
+			self.description = description
+		}
+	}
 	
+	/**
+		Decodes the cell id from a compact text string suitable for display or
+		indexing. Cells at lower levels (i.e. larger cells) are encoded into
+		fewer characters. The maximum token length is 16.
+	*/
+	public init(token: String) throws {
+		let chars = Array(token.characters)
+
+		guard chars.count > 0 else {
+			throw NumberFormatException("Empty string in S2CellId.fromToken")
+		}
+	
+		guard chars.count <= 16 && token != "X" else {
+			self = .none
+			return
+		}
+		
+		var value: UInt64 = 0
+		for pos in 0 ..< 16 {
+			var digit: Int = 0
+			if pos < chars.count {
+				digit = Int(strtoul(String(chars[pos]), nil, 16))
+				if digit == -1 {
+					throw NumberFormatException(token)
+				}
+				if S2CellId.overflowInParse(current: value, digit: digit) {
+					throw NumberFormatException("Too large for unsigned long: " + token)
+				}
+			}
+			value = (value * 16) + UInt64(digit)
+		}
+		self = S2CellId(id: Int64(bitPattern: value))
+	}
+	
+	/**
+		Encodes the cell id to compact text strings suitable for display or indexing.
+		Cells at lower levels (i.e. larger cells) are encoded into fewer characters.
+		The maximum token length is 16.
+	
+		Simple implementation: convert the id to hex and strip trailing zeros. We
+		could use base-32 or base-64, but assuming the cells used for indexing
+		regions are at least 100 meters across (level 16 or less), the savings
+		would be at most 3 bytes (9 bytes hex vs. 6 bytes base-64).
+	*/
+	var token: String {
+		guard id != 0 else { return "X" }
+		var hex = String(uid, radix: 16).lowercased()
+		for _ in 0 ..< max(0, 16 - hex.characters.count) {
+			hex.insert("0", at: hex.startIndex)
+		}
+		let chars = hex.characters
+		var len = chars.count
+		for char in chars.reversed() {
+			guard char == "0" else { break }
+			len -= 1
+		}
+		return String(chars.prefix(len))
+	}
+
+	/**
+		Returns true if (current * radix) + digit is a number too large to be
+		represented by an unsigned long.  This is useful for detecting overflow
+		while parsing a string representation of a number.
+		Does not verify whether supplied radix is valid, passing an invalid radix
+		will give undefined results or an ArrayIndexOutOfBoundsException.
+	*/
+	private static func overflowInParse(current: UInt64, digit: Int, radix: Int = 10) -> Bool {
+		if current >= 0 {
+			if current < maxValueDivs[radix] {
+				return false
+			}
+			if current > maxValueDivs[radix] {
+				return true
+			}
+			// current == maxValueDivs[radix]
+			return digit > maxValueMods[radix]
+		}
+
+		// current < 0: high bit is set
+		return true
+	}
+	
+	// calculated as 0xffffffffffffffff / radix
+	private static let maxValueDivs: [UInt64] = [0, 0, // 0 and 1 are invalid
+		9223372036854775807, 6148914691236517205, 4611686018427387903, // 2-4
+		3689348814741910323, 3074457345618258602, 2635249153387078802, // 5-7
+		2305843009213693951, 2049638230412172401, 1844674407370955161, // 8-10
+		1676976733973595601, 1537228672809129301, 1418980313362273201, // 11-13
+		1317624576693539401, 1229782938247303441, 1152921504606846975, // 14-16
+		1085102592571150095, 1024819115206086200, 970881267037344821, // 17-19
+		922337203685477580, 878416384462359600, 838488366986797800, // 20-22
+		802032351030850070, 768614336404564650, 737869762948382064, // 23-25
+		709490156681136600, 683212743470724133, 658812288346769700, // 26-28
+		636094623231363848, 614891469123651720, 595056260442243600, // 29-31
+		576460752303423487, 558992244657865200, 542551296285575047, // 32-34
+		527049830677415760, 512409557603043100 ] // 35-36
+	
+	// calculated as 0xffffffffffffffff % radix
+	private static let maxValueMods: [Int] = [0, 0, // 0 and 1 are invalid
+		1, 0, 3, 0, 3, 1, 7, 6, 5, 4, 3, 2, 1, 0, 15, 0, 15, 16, 15, 15, // 2-21
+		15, 5, 15, 15, 15, 24, 15, 23, 15, 15, 31, 15, 17, 15, 15 ] // 22-36
+	
+	/**
+		Return the four cells that are adjacent across the cell's four edges.
+		Neighbors are returned in the order defined by S2Cell::GetEdge. All
+		neighbors are guaranteed to be distinct.
+	*/
+	public func getEdgeNeighbors() -> [S2CellId] {
+		let level = self.level
+		let size = 1 << (S2CellId.maxLevel - level)
+		var i = 0, j = 0, orientation: Int? = nil
+		let face = toFaceIJOrientation(i: &i, j: &j, orientation: &orientation)
+		
+		// Edges 0, 1, 2, 3 are in the S, E, N, W directions.
+		return [
+			S2CellId(face: face, i: i, j: j - size, sameFace: j - size >= 0).parent(level: level),
+			S2CellId(face: face, i: i + size, j: j, sameFace: i + size < S2CellId.maxSize).parent(level: level),
+			S2CellId(face: face, i: i, j: j + size, sameFace: j + size < S2CellId.maxSize).parent(level: level),
+			S2CellId(face: face, i: i - size, j: j, sameFace: i - size >= 0).parent(level: level)
+		]
+	}
+
 	/**
 		Return the neighbors of closest vertex to this cell at the given level, by
 		appending them to "output". Normally there are four neighbors, but the
@@ -400,9 +540,7 @@ public struct S2CellId: Comparable, Hashable {
 		// "level" must be strictly less than this cell's level so that we can
 		// determine which vertex this cell is closest to.
 		// assert (level < this.level());
-		var i = 0
-		var j = 0
-		var orientation: Int? = nil
+		var i = 0, j = 0, orientation: Int? = nil
 		let face = toFaceIJOrientation(i: &i, j: &j, orientation: &orientation)
 		
 		// Determine the i- and j-offsets to the closest neighboring cell in each
@@ -437,6 +575,55 @@ public struct S2CellId: Comparable, Hashable {
 		// vertex only has three neighbors (it is one of the 8 cube vertices).
 		if isame || jsame {
 			output.append(S2CellId(face: face, i: i + ioffset, j: j + joffset, sameFace: isame && jsame).parent(level: level))
+		}
+		
+		return output
+	}
+	
+	/**
+		Append all neighbors of this cell at the given level to "output". Two cells
+		X and Y are neighbors if their boundaries intersect but their interiors do
+		not. In particular, two cells that intersect at a single point are neighbors.
+	
+		Requires: nbr_level >= this->level(). Note that for cells adjacent to a
+		face vertex, the same neighbor may be appended more than once.
+	*/
+	public func getAllNeighbors(level nbrLevel: Int) -> [S2CellId] {
+		var i = 0, j = 0, orientation: Int? = nil
+		let face = toFaceIJOrientation(i: &i, j: &j, orientation: &orientation)
+
+		// Find the coordinates of the lower left-hand leaf cell. We need to
+		// normalize (i,j) to a known position within the cell because nbr_level
+		// may be larger than this cell's level.
+		let size = 1 << (S2CellId.maxLevel - level)
+		i = i & -size
+		j = j & -size
+
+		let nbrSize = 1 << (S2CellId.maxLevel - nbrLevel)
+		// assert (nbrSize <= size);
+		
+		var output: [S2CellId] = []
+
+		// We compute the N-S, E-W, and diagonal neighbors in one pass.
+		// The loop test is at the end of the loop to avoid 32-bit overflow.
+		var k = -nbrSize
+		while true {
+			let sameFace: Bool
+			if (k < 0) {
+				sameFace = j + k >= 0
+			} else if (k >= size) {
+				sameFace = j + k < S2CellId.maxLevel
+			} else {
+				sameFace = true
+				// North and South neighbors.
+				output.append(S2CellId(face: face, i: i + k, j: j - nbrSize, sameFace: j - size >= 0).parent(level: nbrLevel))
+				output.append(S2CellId(face: face, i: i + k, j: j + size, sameFace: j + size < S2CellId.maxLevel).parent(level: nbrLevel))
+			}
+			// East, West, and Diagonal neighbors.
+			output.append(S2CellId(face: face, i: i - nbrSize, j: j + k, sameFace: sameFace && i - size >= 0).parent(level: nbrLevel))
+			output.append(S2CellId(face: face, i: i + size, j: j + k, sameFace: sameFace && i + size < S2CellId.maxLevel).parent(level: nbrLevel))
+			if k >= size { break }
+			k += nbrSize
 		}
 		
 		return output
@@ -582,7 +769,10 @@ public struct S2CellId: Comparable, Hashable {
 	}
 	
 	public var hashValue: Int {
-		return Int((id >> 32) + id)
+		
+//		UInt64
+		
+		return Int(truncatingBitPattern: (uid >> 32) + uid)
 	}
 	
 	/**
@@ -600,7 +790,8 @@ public struct S2CellId: Comparable, Hashable {
 		// on Intel processors because it requires changing the rounding mode.
 		// Rounding to the nearest integer using FastIntRound() is much faster.
 		let m = Double(maxSize / 2) // scaling multiplier
-		return Int(max(0, min(2 * m - 1, round(m * s + (m - 0.5)))))
+		let x = round(m * s + (m - 0.5))
+		return Int(max(0, min(2 * m - 1, x)))
 	}
 	
 	/// Convert (face, si, ti) coordinates (see s2.h) to a direction vector (not necessarily unit length).

@@ -695,12 +695,12 @@ public struct S2 {
 	}
 	
 	/// Return true if two points are within the given distance of each other (mainly useful for testing).
-	public static func approxEquals(a: S2Point, b: S2Point, maxError: Double = 1e-15) -> Bool {
+	public static func approxEquals(_ a: S2Point, _ b: S2Point, maxError: Double = 1e-15) -> Bool {
 		return a.angle(to: b) <= maxError
 	}
 	
 	/// Return true if two points are within the given distance of each other (mainly useful for testing).
-	public static func approxEquals(a: Double, b: Double, maxError: Double = 1e-15) -> Bool {
+	public static func approxEquals(_ a: Double, _ b: Double, maxError: Double = 1e-15) -> Bool {
 		return abs(a - b) <= maxError
 	}
 	

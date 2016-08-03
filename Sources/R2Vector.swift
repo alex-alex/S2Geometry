@@ -69,12 +69,20 @@ public func *(lhs: R2Vector, m: Double) -> R2Vector {
 	return R2Vector(x: lhs.x * m, y: lhs.y * m)
 }
 
-infix operator ⋅ { associativity left precedence 140 }
+precedencegroup DotProductPrecedence {
+	associativity: left
+	higherThan: MultiplicationPrecedence
+}
+infix operator ⋅ : DotProductPrecedence
 public func ⋅(lhs: R2Vector, rhs: R2Vector) -> Double {
 	return lhs.dotProd(rhs)
 }
 
-infix operator × { associativity left precedence 140 }
+precedencegroup CrossProductPrecedence {
+	associativity: left
+	higherThan: DotProductPrecedence
+}
+infix operator × : CrossProductPrecedence
 public func ×(lhs: R2Vector, rhs: R2Vector) -> Double {
 	return lhs.crossProd(rhs)
 }

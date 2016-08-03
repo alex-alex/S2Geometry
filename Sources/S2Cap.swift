@@ -136,7 +136,7 @@ public struct S2Cap: S2Region {
 		other cap. (This relationship is not symmetric, since only the interior of
 		this cap is used.)
 	*/
-	public func interiorIntersects(other: S2Cap) -> Bool {
+	public func interiorIntersects(with other: S2Cap) -> Bool {
 		// Interior(X) intersects Y if and only if Complement(Interior(X)) does not contain Y.
 		return !complement.contains(other: other)
 	}
@@ -152,9 +152,9 @@ public struct S2Cap: S2Region {
 	}
 	
 	/**
-	* Increase the cap height if necessary to include the given point. If the cap
-	* is empty the axis is set to the given point, but otherwise it is left
-	* unchanged. 'p' should be a unit-length vector.
+		Increase the cap height if necessary to include the given point. If the cap
+		is empty the axis is set to the given point, but otherwise it is left
+		unchanged. 'p' should be a unit-length vector.
 	*/
 	public func add(point p: S2Point) -> S2Cap {
 		// Compute the squared chord length, then convert it into a height.
@@ -192,7 +192,7 @@ public struct S2Cap: S2Region {
 	}
 	
 	/// Return true if the cap intersects 'cell', given that the cap vertices have alrady been checked.
-	public func intersects(cell: S2Cell, vertices: [S2Point]) -> Bool {
+	public func intersects(with cell: S2Cell, vertices: [S2Point]) -> Bool {
 		// Return true if this cap intersects any point of 'cell' excluding its
 		// vertices (which are assumed to already have been checked).
 		
@@ -313,27 +313,29 @@ public struct S2Cap: S2Region {
 		// of 2-epsilon is rounded off to 2).
 		var vertices: [S2Point] = []
 		for k in 0 ..< 4 {
-			vertices[k] = cell.getVertex(k)
-			if !contains(point: vertices[k]) {
+			let vertex = cell.getVertex(k)
+			if !contains(point: vertex) {
 				return false
 			}
+			vertices.append(vertex)
 		}
 		// Otherwise, return true if the complement of the cap does not intersect
 		// the cell. (This test is slightly conservative, because technically we
 		// want Complement().InteriorIntersects() here.)
-		return !complement.intersects(cell: cell, vertices: vertices)
+		return !complement.intersects(with: cell, vertices: vertices)
 	}
 	
 	public func mayIntersect(cell: S2Cell) -> Bool {
 		// If the cap contains any cell vertex, return true.
 		var vertices: [S2Point] = []
 		for k in 0 ..< 4 {
-			vertices[k] = cell.getVertex(k)
-			if contains(point: vertices[k]) {
+			let vertex = cell.getVertex(k)
+			if contains(point: vertex) {
 				return true
 			}
+			vertices.append(vertex)
 		}
-		return intersects(cell: cell, vertices: vertices)
+		return intersects(with: cell, vertices: vertices)
 	}
 	
 }

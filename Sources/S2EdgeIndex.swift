@@ -87,17 +87,17 @@ public class S2EdgeIndex {
 		// create an array of indices and sort based on the values in the parallel arrays at each index
 		var indices: [Int] = []
 		for i in 0 ..< cells.count {
-			indices[i] = i
+			indices.append(i)
 		}
 		
-		indices.sort(isOrderedBefore: { (cells[$0], edges[$0]) < (cells[$1], edges[$1]) })
+		indices.sort(by: { (cells[$0], edges[$0]) < (cells[$1], edges[$1]) })
 		
 		// copy the cells and edges in the order given by the sorted list of indices
 		var newCells: [Int64] = []
 		var newEdges: [Int] = []
 		for i in 0 ..< indices.count {
-			newCells[i] = cells[indices[i]]
-			newEdges[i] = edges[indices[i]]
+			newCells.append(cells[indices[i]])
+			newEdges.append(edges[indices[i]])
 		}
 		
 		// replace the cells and edges with the sorted arrays
@@ -383,7 +383,7 @@ public class S2EdgeIndex {
 	private static func edgeIntersectsCellBoundary(a: S2Point, b: S2Point, cell: S2Cell) -> Bool {
 		var vertices: [S2Point] = []
 		for i in 0 ..< 4 {
-			vertices[i] = cell.getVertex(i)
+			vertices.append(cell.getVertex(i))
 		}
 		for i in 0 ..< 4 {
 			let fromPoint = vertices[i];

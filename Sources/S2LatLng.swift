@@ -35,15 +35,25 @@ public struct S2LatLng: Equatable {
 		self.lat = lat
 		self.lng = lng
 	}
-	
-	public init(latRadians: Double, lngRadians: Double) {
-		self.lat = S1Angle(radians: latRadians)
-		self.lng = S1Angle(radians: lngRadians)
+
+	public static func fromRadians(lat: Double, lng: Double) -> S2LatLng {
+		return S2LatLng(lat: S1Angle(radians: lat), lng: S1Angle(radians: lng))
 	}
-	
-	public init(latDegrees: Double, lngDegrees: Double) {
-		self.lat = S1Angle(degrees: latDegrees)
-		self.lng = S1Angle(degrees: lngDegrees)
+
+	public static func fromDegrees(lat: Double, lng: Double) -> S2LatLng {
+		return S2LatLng(lat: S1Angle(degrees: lat), lng: S1Angle(degrees: lng))
+	}
+
+	public static func fromE5(lat: Int64, lng: Int64) -> S2LatLng {
+		return S2LatLng(lat: S1Angle(e5: lat), lng: S1Angle(e5: lng))
+	}
+
+	public static func fromE6(lat: Int64, lng: Int64) -> S2LatLng {
+		return S2LatLng(lat: S1Angle(e6: lat), lng: S1Angle(e6: lng))
+	}
+
+	public static func fromE7(lat: Int64, lng: Int64) -> S2LatLng {
+		return S2LatLng(lat: S1Angle(e7: lat), lng: S1Angle(e7: lng))
 	}
 	
 	/// Convert a point (not necessarily normalized) to an S2LatLng.
@@ -72,7 +82,7 @@ public struct S2LatLng: Equatable {
 	public var normalized: S2LatLng {
 		// drem(x, 2 * S2.M_PI) reduces its argument to the range
 		// [-S2.M_PI, S2.M_PI] inclusive, which is what we want here.
-		return S2LatLng(latRadians: max(-M_PI_2, min(M_PI_2, lat.radians)), lngRadians: remainder(lng.radians, 2 * M_PI))
+		return S2LatLng.fromRadians(lat: max(-M_PI_2, min(M_PI_2, lat.radians)), lng: remainder(lng.radians, 2 * M_PI))
 	}
 	
 	/// Convert an S2LatLng to the equivalent unit-length vector (S2Point).
@@ -118,6 +128,11 @@ public struct S2LatLng: Equatable {
 		return getDistance(to: o).radians * radius
 	}
 	
+	/// Returns true if both the latitude and longitude of the given point are within {@code maxError} radians of this point.
+	public func approxEquals(to other: S2LatLng, maxError: Double = 1e-9) -> Bool {
+		return (abs(lat.radians - other.lat.radians) < maxError) && (abs(lng.radians - other.lng.radians) < maxError)
+	}
+	
 }
 
 public func ==(lhs: S2LatLng, rhs: S2LatLng) -> Bool {
@@ -132,6 +147,6 @@ public func -(lhs: S2LatLng, rhs: S2LatLng) -> S2LatLng {
 	return S2LatLng(lat: lhs.lat - rhs.lat, lng: lhs.lng - rhs.lng)
 }
 
-public func *(lhs: S2LatLng, m: S1Angle) -> S2LatLng {
+public func *(lhs: S2LatLng, m: Double) -> S2LatLng {
 	return S2LatLng(lat: lhs.lat * m, lng: lhs.lng * m)
 }

@@ -36,6 +36,18 @@ public struct S1Angle: Equatable, Comparable {
 		self.radians = degrees * (M_PI / 180)
 	}
 	
+	public init(e5: Int64) {
+		self.init(degrees: Double(e5) * 1e-5)
+	}
+	
+	public init(e6: Int64) {
+		self.init(degrees: Double(e6) * 1e-6)
+	}
+	
+	public init(e7: Int64) {
+		self.init(degrees: Double(e7) * 1e-7)
+	}
+	
 }
 
 public func ==(lhs: S1Angle, rhs: S1Angle) -> Bool {
@@ -54,6 +66,6 @@ public func -(lhs: S1Angle, rhs: S1Angle) -> S1Angle {
 	return S1Angle(radians: lhs.radians - rhs.radians)
 }
 
-public func *(lhs: S1Angle, rhs: S1Angle) -> S1Angle {
-	return S1Angle(radians: lhs.radians * rhs.radians)
+public func *(lhs: S1Angle, rhs: Double) -> S1Angle {
+	return S1Angle(radians: lhs.radians * rhs)
 }

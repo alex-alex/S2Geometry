@@ -164,12 +164,10 @@ public func /(lhs: S2Point, rhs: Double) -> S2Point {
 	return S2Point(x: lhs.x / rhs, y: lhs.y / rhs, z: lhs.z / rhs)
 }
 
-infix operator ⋅ { associativity left precedence 140 }
 public func ⋅(lhs: S2Point, rhs: S2Point) -> Double {
 	return lhs.dotProd(rhs)
 }
 
-infix operator × { associativity left precedence 140 }
 public func ×(lhs: S2Point, rhs: S2Point) -> S2Point {
 	return lhs.crossProd(rhs)
 }

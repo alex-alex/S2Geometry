@@ -72,7 +72,7 @@ public struct S2Loop: S2Region, Comparable {
 	private var vertexToIndex: [S2Point: Int] = [:]
 	
 	/// The index (into "vertices") of the vertex that comes first in the total ordering of all vertices in this loop.
-	private var firstLogicalVertex: Int = 0
+	fileprivate var firstLogicalVertex: Int = 0
 	
 	private var bound: S2LatLngRect = .full
 	private var originInside: Bool = false
@@ -183,8 +183,8 @@ public struct S2Loop: S2Region, Comparable {
 		for i in (0 ... (last - 1) / 2).reversed() {
 //		for (int i = (last - 1) / 2; i >= 0; --i) {
 			let t = vertices[i]
-			vertices[i] = vertices[last - i];
-			vertices[last - i] = t;
+			vertices[i] = vertices[last - i]
+			vertices[last - i] = t
 		}
 		vertexToIndex = [:]
 		index = S2LoopEdgeIndex(loop: self)
@@ -198,6 +198,12 @@ public struct S2Loop: S2Region, Comparable {
 		}
 		initFirstLogicalVertex()
 		initVertexToIndex()
+	}
+
+	public var inverted: S2Loop {
+		var tmp = self
+		tmp.invert()
+		return tmp
 	}
 	
 	/// Helper method to get area and optionally centroid.
@@ -380,7 +386,7 @@ public struct S2Loop: S2Region, Comparable {
 		Given two loops of a polygon, return true if A contains B. This version of
 		contains() is much cheaper since it does not need to check whether the boundaries of the two loops cross.
 	*/
-	public func containsNested(b: S2Loop) -> Bool {
+	public func containsNested(other b: S2Loop) -> Bool {
 		if !bound.contains(other: b.rectBound) { return false }
 		
 		// We are given that A and B do not share any edges, and that either one
@@ -442,7 +448,7 @@ public struct S2Loop: S2Region, Comparable {
 		var iThis = firstLogicalVertex
 		var iOther = b.firstLogicalVertex
 		for _ in 0 ..< maxVertices {
-			if !S2.approxEquals(a: vertex(iThis), b: b.vertex(iOther), maxError: maxError) { return false }
+			if !S2.approxEquals(vertex(iThis), b.vertex(iOther), maxError: maxError) { return false }
 			iThis += 1
 			iOther += 1
 		}
@@ -560,9 +566,9 @@ public struct S2Loop: S2Region, Comparable {
 					// intersections between edge pairs where all four points are
 					// nearly colinear.
 					let abc = S2.angle(a: vertex(a1), b: vertex(a2), c: vertex(b1))
-					let abcNearlyLinear = S2.approxEquals(a: abc, b: 0, maxError: S2Loop.maxIntersectionError) || S2.approxEquals(a: abc, b: M_PI, maxError: S2Loop.maxIntersectionError)
+					let abcNearlyLinear = S2.approxEquals(abc, 0, maxError: S2Loop.maxIntersectionError) || S2.approxEquals(abc, M_PI, maxError: S2Loop.maxIntersectionError)
 					let abd = S2.angle(a: vertex(a1), b: vertex(a2), c: vertex(b2));
-					let abdNearlyLinear = S2.approxEquals(a: abd, b: 0, maxError: S2Loop.maxIntersectionError) || S2.approxEquals(a: abd, b: M_PI, maxError: S2Loop.maxIntersectionError)
+					let abdNearlyLinear = S2.approxEquals(abd, 0, maxError: S2Loop.maxIntersectionError) || S2.approxEquals(abd, M_PI, maxError: S2Loop.maxIntersectionError)
 					if abcNearlyLinear && abdNearlyLinear { continue }
 					
 					if previousIndex != b1 {
