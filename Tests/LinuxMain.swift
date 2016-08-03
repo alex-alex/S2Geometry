@@ -1,7 +1,7 @@
 #if os(Linux)
 
 import XCTest
-@testable import S2GeometryTests
+@testable import S2GeometryTestSuite
 
 XCTMain([
   testCase(R1IntervalTests.allTests),
