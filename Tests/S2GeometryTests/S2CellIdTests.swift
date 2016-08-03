@@ -6,14 +6,14 @@
 //  Copyright © 2016 Alex Studnicka. MIT License.
 //
 
-import XCTest
-@testable import S2Geometry
-
 #if os(Linux)
 	import Glibc
 #else
 	import Darwin.C
 #endif
+
+import XCTest
+@testable import S2Geometry
 
 class S2CellIdTests: XCTestCase {
 	

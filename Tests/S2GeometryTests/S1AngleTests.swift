@@ -6,6 +6,12 @@
 //  Copyright © 2016 Alex Studnicka. MIT License.
 //
 
+#if os(Linux)
+	import Glibc
+#else
+	import Darwin.C
+#endif
+
 import XCTest
 @testable import S2Geometry
 
