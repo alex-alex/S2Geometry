@@ -199,7 +199,7 @@ class S2CellIdTests: XCTestCase {
 		let maxDist = 0.5 * S2Projections.maxDiag.getValue(level: S2CellId.maxLevel)
 		for _ in 0 ..< 1_000_000 {
 			// randomPoint();
-			let p = S2Point(x: .random, y: .random, z: .random)
+			let p = S2Point(x: .random(), y: .random(), z: .random())
 			let q = S2CellId(point: p).rawPoint
 			
 			XCTAssert(p.angle(to: q) <= maxDist)
@@ -267,7 +267,7 @@ class S2CellIdTests: XCTestCase {
 			// TestAllNeighbors computes approximately 2**(2*(diff+1)) cell id1s,
 			// so it's not reasonable to use large values of "diff".
 			let maxDiff = min(6, S2CellId.maxLevel - id1.level - 1)
-			let level = id1.level + Int(arc4random_uniform(UInt32(maxDiff)))
+			let level = id1.level + Int.random(max: UInt32(maxDiff))
 			testAllNeighbors(id1, level)
 		}
 	}

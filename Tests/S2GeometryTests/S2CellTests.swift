@@ -234,7 +234,7 @@ class S2CellTests: XCTestCase {
 					forceSubdivide = true
 				}
 			}
-			if (forceSubdivide || cell.level < (S2CellTests.debug ? 5 : 6) || arc4random_uniform(S2CellTests.debug ? 10 : 4) == 0) {
+			if (forceSubdivide || cell.level < (S2CellTests.debug ? 5 : 6) || Int.random(max: S2CellTests.debug ? 10 : 4) == 0) {
 				testSubdivide(cell: children[i])
 			}
 			

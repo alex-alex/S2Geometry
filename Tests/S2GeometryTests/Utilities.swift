@@ -15,24 +15,26 @@
 import XCTest
 @testable import S2Geometry
 
-func S2AssertDoubleNear(a: Double, b: Double, error: Double = 1e-9, file: StaticString = #file, line: UInt = #line) {
-	
-//	XCTAssertEqualWithAccuracy
-	
-	XCTAssert(a + error > b, file: file, line: line)
-	XCTAssert(a < b + error, file: file, line: line)
+extension Int {
+	static func random(max: UInt32 = .max) -> Int {
+		#if os(Linux)
+			return Int(random() % (max + 1))
+		#else
+			return Int(arc4random_uniform(UInt32(max)))
+		#endif
+	}
 }
 
 extension Double {
-	static var random: Double {
-		return Double(arc4random()) / Double(UINT32_MAX)
+	static func random() -> Double {
+		return Double(Int.random()) / Double(UInt32.max)
 	}
 }
 
 extension S2Point {
 	/// Return a random unit-length vector.
 	static var random: S2Point {
-		return S2Point(x: .random, y: .random, z: .random)
+		return S2Point(x: .random(), y: .random(), z: .random())
 	}
 	
 	/// Return a right-handed coordinate frame (three orthonormal vectors). Returns an array of three points: x,y,z
@@ -55,13 +57,13 @@ extension S2CellId {
 		approximately uniform over the surface of the sphere.
 	*/
 	static func random(level: Int) -> S2CellId {
-		let face = Int(arc4random_uniform(UInt32(S2CellId.numFaces)))
-		let pos = Int64(arc4random()) & ((1 << (2 * Int64(S2CellId.maxLevel))) - 1)
+		let face = Int.random(max: UInt32(S2CellId.numFaces))
+		let pos = Int64(Int.random()) & ((1 << (2 * Int64(S2CellId.maxLevel))) - 1)
 		return S2CellId(face: face, pos: pos, level: level)
 	}
 	
 	static var random: S2CellId {
-		return random(level: Int(arc4random_uniform(UInt32(S2CellId.maxLevel) + 1)))
+		return random(level: Int.random(max: UInt32(S2CellId.maxLevel) + 1))
 	}
 }
 
