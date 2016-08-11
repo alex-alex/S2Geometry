@@ -12,12 +12,6 @@
 	import Darwin.C
 #endif
 
-internal extension Double {
-	var _bitPattern: UInt64 {
-		return unsafeBitCast(self, to: UInt64.self)
-	}
-}
-
 public struct S2 {
 	
 	// Together these flags define a cell orientation. If SWAP_MASK
@@ -160,8 +154,14 @@ public struct S2 {
 			guard value > 0 else { return S2CellId.maxLevel }
 			
 			// This code is equivalent to computing a floating-point "level" value and rounding up.
-			let exponent = exp(value / (Double(1 << dim) * deriv))
-			let level = max(0, min(S2CellId.maxLevel, -((Int(exponent._bitPattern) - 1) >> (dim - 1))))
+			
+			#if os(Linux)
+				let exponent = Glibc.exp(value / (Double(1 << dim) * deriv))
+			#else
+				let exponent = Darwin.exp(value / (Double(1 << dim) * deriv))
+			#endif
+			
+			let level = max(0, min(S2CellId.maxLevel, -((Int(exponent.bitPattern) - 1) >> (dim - 1))))
 			// assert (level == S2CellId.MAX_LEVEL || getValue(level) <= value);
 			// assert (level == 0 || getValue(level - 1) > value);
 			return level
@@ -178,8 +178,14 @@ public struct S2 {
 			guard value > 0 else { return S2CellId.maxLevel }
 			
 			// This code is equivalent to computing a floating-point "level" value and rounding down.
-			let exponent = exp(Double(1 << dim) * deriv / value)
-			let level = max(0, min(S2CellId.maxLevel, (Int(exponent._bitPattern - 1) >> (dim - 1))))
+			
+			#if os(Linux)
+				let exponent = Glibc.exp(Double(1 << dim) * deriv / value)
+			#else
+				let exponent = Darwin.exp(Double(1 << dim) * deriv / value)
+			#endif
+			
+			let level = max(0, min(S2CellId.maxLevel, (Int(exponent.bitPattern - 1) >> (dim - 1))))
 			// assert (level == 0 || getValue(level) >= value);
 			// assert (level == S2CellId.MAX_LEVEL || getValue(level + 1) < value);
 			return level
