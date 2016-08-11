@@ -12,6 +12,7 @@
 	import Darwin.C
 #endif
 
+import Foundation
 import XCTest
 @testable import S2Geometry
 
