@@ -1,5 +1,3 @@
-#if os(Linux)
-
 import XCTest
 @testable import S2GeometryTests
 
@@ -13,4 +11,3 @@ XCTMain([
   testCase(S2LatLngTests.allTests),
   testCase(S2LoopTests.allTests),
 ])
-#endif
