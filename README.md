@@ -23,7 +23,7 @@ import PackageDescription
 
 let package = Package(
     dependencies: [
-        .Package(url: "https://github.com/alex-alex/S2Geometry.git", majorVersion: 0, minor: 1),
+        .Package(url: "https://github.com/alex-alex/S2Geometry.git", majorVersion: 0, minor: 2),
     ]
 )
 ```
